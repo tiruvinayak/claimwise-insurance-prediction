@@ -114,8 +114,18 @@ df_step3_read = pd.read_csv(STEP3_PATH)
 df_step4 = df_step3_read.copy()
 
 continuous_features = [col for col in df_step4.columns if col.startswith("cont")]
+
+# DATA LEAKAGE FIX:
+# The scaler must only learn statistics (mean/std) from the training rows.
+# The 80/20 split below uses test_size=0.20 and random_state=42, and
+# train_test_split depends only on the number of rows and that seed, so the
+# same training row indices are reproduced here and in Step 5.
+row_indices = np.arange(len(df_step4))
+train_indices, _ = train_test_split(row_indices, test_size=0.20, random_state=42)
+
 scaler = StandardScaler()
-df_step4[continuous_features] = scaler.fit_transform(df_step4[continuous_features])
+scaler.fit(df_step4.iloc[train_indices][continuous_features])
+df_step4[continuous_features] = scaler.transform(df_step4[continuous_features])
 
 df_step4.to_csv(STEP4_PATH, index=False)
 print("Saved Step 4 dataset:", STEP4_PATH)

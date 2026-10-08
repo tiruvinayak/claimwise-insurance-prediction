@@ -19,6 +19,7 @@ MODEL_FILES = {
     "Decision Tree Regressor": "decision_tree_regressor.pkl",
     "Random Forest Regressor": "random_forest_regressor.pkl",
     "Gradient Boosting Regressor": "gradient_boosting_regressor.pkl",
+    "Hist Gradient Boosting Regressor": "hist_gradient_boosting_regressor.pkl",
 }
 
 
@@ -28,6 +29,7 @@ def main() -> None:
         "Decision Tree Regressor",
         "Random Forest Regressor",
         "Gradient Boosting Regressor",
+        "Hist Gradient Boosting Regressor",
     ]
     results = {}
     for model_name in model_names:

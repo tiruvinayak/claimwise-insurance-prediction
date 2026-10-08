@@ -9,44 +9,12 @@
     <div class="page-header">
         <span class="page-label">PREDICTION INTERFACE</span>
         <h1>Insurance Claim Loss Prediction</h1>
-        <p>Run a prediction against an existing prepared test record using the exact 130-feature model structure.</p>
+        <p>Enter the real ClaimWise feature values — 14 continuous (<code>cont1</code>–<code>cont14</code>)
+            and 116 categorical (<code>cat1</code>–<code>cat116</code>) columns — and read the numeric
+            loss predicted by the saved best model. The saved <code>LabelEncoder</code> and
+            <code>StandardScaler</code> from the training pipeline transform your input first, so the
+            model receives exactly the same kind of data it was trained on.</p>
     </div>
-
-    <div class="info-box">
-        <p>
-            <strong>Safe feature strategy:</strong> the current model was trained on the actual encoded columns in <code>X_test.csv</code> ({{ feature_count }} features). This page asks for a test-row number instead of inventing customer, policy, or claim fields that do not exist in the dataset. The selected row is passed to the saved best model unchanged.
-        </p>
-    </div>
-
-    {% if model_ready %}
-    <form method="post" action="{{ url_for('prediction') }}">
-        <div class="form-section">
-            <div class="form-section-title">MODEL-READY TEST SAMPLE</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="row_index">Test row number</label>
-                    <input id="row_index" name="row_index" type="number" min="0" max="{{ test_row_count - 1 }}" value="0" required>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Valid range: 0 to {{ test_row_count - 1 }}.</p>
-                </div>
-                <div class="form-group">
-                    <label>Selected best model</label>
-                    <input type="text" value="{{ best_name }}" readonly>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">The model selected from actual test metrics.</p>
-                </div>
-                <div class="form-group">
-                    <label>Feature structure</label>
-                    <input type="text" value="{{ feature_count }} numeric features" readonly>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">No silent defaults or invented fields are used.</p>
-                </div>
-            </div>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">PREDICT CLAIM LOSS</button>
-    </form>
-    {% else %}
-    <div class="info-box">
-        <p><strong>Prediction is unavailable.</strong> Run <code>.venv/bin/python Src/train_models.py</code> first so the best model and its evaluation results are created.</p>
-    </div>
-    {% endif %}
 
     {% if error %}
     <div class="info-box" style="border-left-color: var(--error);">
@@ -54,8 +22,51 @@
     </div>
     {% endif %}
 
-    {% if result %}
+    {% if manual %}
     <h2>Prediction Result</h2>
+    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="card">
+            <h3>Predicted Loss</h3>
+            <div class="stat-value" style="color: var(--accent-primary);">{{ '%.2f'|format(manual['predicted_loss']) }}</div>
+            <p>Output from {{ manual['model'] }}</p>
+        </div>
+        <div class="card">
+            <h3>Model Used</h3>
+            <div class="stat-value" style="font-size: 17px;">{{ manual['model'] }}</div>
+            <p>Lowest test-set RMSE of the five trained models</p>
+        </div>
+        <div class="card">
+            <h3>Features Passed</h3>
+            <div class="stat-value">{{ manual['feature_count'] }}</div>
+            <p>Label-encoded and scaled, order validated against the model</p>
+        </div>
+        {% if manual['test_mean_loss'] is defined and manual['test_mean_loss'] %}
+        <div class="card">
+            <h3>Test-Set Mean Loss</h3>
+            <div class="stat-value">{{ '%.2f'|format(manual['test_mean_loss']) }}</div>
+            <p>Average actual loss on the 10,000 held-out test rows</p>
+        </div>
+        {% endif %}
+    </div>
+    <p class="form-hint" style="margin-top: 12px;">The dataset does not define a currency or unit for
+        <code>loss</code>, so the predicted value is reported as a plain number on the same scale as the
+        target column (10.00 to 85,923.56 in the raw data).</p>
+
+    {% if manual['warnings'] %}
+    <div class="warning-box">
+        <p><strong>Checked against the dataset ranges:</strong></p>
+        <ul>
+            {% for item in manual['warnings'] %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        <p>The prediction was still generated; values outside the observed range are extrapolation.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if result %}
+    <h2>Test-Row Prediction Result</h2>
     <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
         <div class="card">
             <h3>Test Row</h3>
@@ -77,6 +88,91 @@
             <div class="stat-value">{{ result['feature_count'] }}</div>
             <p>Validated against the trained model</p>
         </div>
+    </div>
+    {% endif %}
+
+    {% if model_ready and form_groups %}
+    <h2>Enter Feature Values</h2>
+    <form method="post" action="{{ url_for('prediction') }}">
+        <input type="hidden" name="mode" value="manual">
+        <div class="form-section">
+            <div class="form-section-title">RAW CLAIMWISE FEATURES (130 COLUMNS)</div>
+
+            {% for group in form_groups %}
+            <details class="form-details" {% if group['open'] %}open{% endif %}>
+                <summary>{{ group['title'] }}</summary>
+                <div class="form-details-body">
+                    <p class="form-details-hint">{{ group['description'] }}</p>
+                    <div class="form-grid">
+                        {% for field in group['fields'] %}
+                        {% if field['kind'] == 'number' %}
+                        <div class="form-group">
+                            <label for="id_{{ field['name'] }}">{{ field['name'] }}</label>
+                            <input id="id_{{ field['name'] }}" name="{{ field['name'] }}" type="number"
+                                   step="{{ field['step'] }}" min="{{ field['min'] }}" max="{{ field['max'] }}"
+                                   value="{{ field['default'] }}" required>
+                            <p class="form-hint">Dataset range {{ '%.6g'|format(field['min']) }} to
+                                {{ '%.6g'|format(field['max']) }} · default = median</p>
+                        </div>
+                        {% else %}
+                        <div class="form-group">
+                            <label for="id_{{ field['name'] }}">{{ field['name'] }}
+                                <span class="form-badge">{{ field['cardinality'] }} values</span>
+                            </label>
+                            <select id="id_{{ field['name'] }}" name="{{ field['name'] }}" required>
+                                {% for option in field['options'] %}
+                                <option value="{{ option }}"{% if option == field['default'] %} selected{% endif %}>{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                            <p class="form-hint">Default = most frequent value in the raw dataset</p>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">PREDICT CLAIM LOSS</button>
+    </form>
+
+    <h2 style="margin-top: 34px;">Alternative: Predict a Prepared Test Row</h2>
+    <div class="info-box">
+        <p>
+            <strong>Secondary demo:</strong> instead of typing values, pick a row that already exists in
+            <code>Dataset/06_split_X_test.csv</code>. The row is passed to the saved model unchanged and its
+            stored <code>loss</code> value is shown next to the prediction.
+        </p>
+    </div>
+    <form method="post" action="{{ url_for('prediction') }}">
+        <input type="hidden" name="mode" value="test">
+        <div class="form-section">
+            <div class="form-section-title">MODEL-READY TEST SAMPLE</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="row_index">Test row number</label>
+                    <input id="row_index" name="row_index" type="number" min="0" max="{{ test_row_count - 1 }}"
+                           value="0" required>
+                    <p class="form-hint">Valid range: 0 to {{ test_row_count - 1 }}.</p>
+                </div>
+                <div class="form-group">
+                    <label>Selected best model</label>
+                    <input type="text" value="{{ best_name }}" readonly>
+                    <p class="form-hint">The model selected from actual test metrics.</p>
+                </div>
+                <div class="form-group">
+                    <label>Feature structure</label>
+                    <input type="text" value="{{ feature_count }} numeric features" readonly>
+                    <p class="form-hint">No silent defaults or invented fields are used.</p>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">PREDICT TEST ROW</button>
+    </form>
+    {% else %}
+    <div class="info-box">
+        <p><strong>Prediction is unavailable.</strong> Run <code>.venv/bin/python Src/train_models.py</code>
+            first so the best model and its evaluation results are created.</p>
     </div>
     {% endif %}
 

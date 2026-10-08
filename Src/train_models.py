@@ -9,6 +9,7 @@ import pandas as pd
 
 from decision_tree_regressor_model import main as train_decision_tree
 from gradient_boosting_regressor_model import main as train_gradient_boosting
+from hist_gradient_boosting_regressor_model import main as train_hist_gradient_boosting
 from linear_regression_model import main as train_linear_regression
 from model_training_utils import (
     MODELS_DIR,
@@ -25,6 +26,7 @@ MODEL_FILES = {
     "Decision Tree Regressor": "decision_tree_regressor.pkl",
     "Random Forest Regressor": "random_forest_regressor.pkl",
     "Gradient Boosting Regressor": "gradient_boosting_regressor.pkl",
+    "Hist Gradient Boosting Regressor": "hist_gradient_boosting_regressor.pkl",
 }
 
 
@@ -42,6 +44,8 @@ def main() -> None:
     train_random_forest()
     print("\nTraining Gradient Boosting Regressor...")
     train_gradient_boosting()
+    print("\nTraining Hist Gradient Boosting Regressor...")
+    train_hist_gradient_boosting()
 
     results = {}
     for model_name in MODEL_FILES:

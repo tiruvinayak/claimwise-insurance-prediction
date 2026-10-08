@@ -1,5 +1,7 @@
 import os
+import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # ==========================================================
@@ -40,9 +42,17 @@ print("Continuous Features to Scale:", continuous_features)
 print("Target Column              :", target_col)
 
 # Apply StandardScaler
+# DATA LEAKAGE FIX: fit the scaler on the 80% training rows only, then
+# transform every row. The split uses test_size=0.20 and random_state=42, the
+# same values used later in 5_final_preprocess_M2.py, so the training rows
+# identified here are exactly the rows used to train the models.
+row_indices = np.arange(len(data))
+train_indices, _ = train_test_split(row_indices, test_size=0.20, random_state=42)
+
 scaler = StandardScaler()
+scaler.fit(data.iloc[train_indices][continuous_features])
 scaled_data = data.copy()
-scaled_data[continuous_features] = scaler.fit_transform(data[continuous_features])
+scaled_data[continuous_features] = scaler.transform(data[continuous_features])
 
 # Save output
 scaled_data.to_csv(OUTPUT_FILE, index=False)

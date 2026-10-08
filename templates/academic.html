@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Academic ML | ClaimWise Insurance Prediction System{% endblock %}
+
+{% block content %}
+
+<div class="page" id="academic-top">
+
+    <div class="page-header">
+        <span class="page-label">ACADEMIC EXTENSION</span>
+        <h1>ACADEMIC MACHINE LEARNING</h1>
+        <p>Beyond the production regression system: PCA, classification with confusion matrices and
+            precision/recall/F1, clustering, DBSCAN, anomaly detection and leakage-free 5-fold
+            cross-validation. Every number and chart on this page is read from the real files in
+            <code>Outputs/</code> written by notebooks 11–17.</p>
+    </div>
+
+    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 28px;">
+        <div class="card">
+            <h3>Primary task (unchanged)</h3>
+            <div class="stat-value" style="font-size: 24px;">Regression</div>
+            <p>Predicting claim loss — production models of notebooks 04–10 are untouched</p>
+        </div>
+        <div class="card">
+            <h3>Extension tasks</h3>
+            <div class="stat-value" style="font-size: 24px; color: var(--accent-primary);">6 methods</div>
+            <p>PCA · Classification · Clustering · DBSCAN · Anomaly detection · 5-fold CV</p>
+        </div>
+        <div class="card">
+            <h3>Evaluation protocol</h3>
+            <div class="stat-value" style="font-size: 24px;">5 folds</div>
+            <p>Preprocessing and thresholds fitted inside every fold (random_state = 42)</p>
+        </div>
+        <div class="card">
+            <h3>Source notebooks</h3>
+            <div class="stat-value" style="font-size: 24px;">11 – 17</div>
+            <p>Executed top-to-bottom with zero errors and zero warnings</p>
+        </div>
+    </div>
+
+    {% if sections %}
+    <section id="section-index">
+        <h2>Jump to a Method</h2>
+        <div class="model-grid">
+            {% for s in sections %}
+            <a class="model-card" href="#{{ s.id }}" aria-label="Go to the {{ s.title }} section">
+                <div class="model-card-top">
+                    <span class="model-card-index">{{ loop.index }}</span>
+                </div>
+                <h3 class="model-card-title">{{ s.title }}</h3>
+                <p class="model-card-summary">{{ s.label }} · notebook {{ s.notebook.split('_')[0] }}</p>
+                <span class="model-card-cta">View results <span aria-hidden="true">↓</span></span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% for s in sections %}
+    <section id="{{ s.id }}" class="model-section">
+        <span class="page-label">{{ s.label | upper }}</span>
+        <h2>{{ s.title }}</h2>
+        <div class="info-box">
+            <p>{{ s.intro }} Source notebook:
+                <a href="{{ url_for('notebook_file', filename=s.notebook) }}">{{ s.notebook }}</a>
+                (download).</p>
+        </div>
+
+        {% if s.cards %}
+        <div class="cards">
+            {% for c in s.cards %}
+            <div class="card">
+                <h3>{{ c.label }}</h3>
+                <div class="stat-value">{{ c.value }}</div>
+                <p>{{ c.note }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% for t in s.tables %}
+        <h3>{{ t.title }}</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>{% for header in t.headers %}<th>{{ header }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                    {% for row in t.rows %}
+                    <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        {% if s.images %}
+        <h3>Generated Charts</h3>
+        <div class="figure-grid">
+            {% for image in s.images %}
+            <figure class="figure-card">
+                <img src="{{ url_for('outputs', filename=image['src']) }}"
+                     alt="{{ image['alt'] }}" loading="lazy">
+                <figcaption>{{ image['caption'] }}</figcaption>
+            </figure>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="interpretation-box">
+            <span class="interpretation-title">Interpretation</span>
+            <p>{{ s.interpretation }}</p>
+        </div>
+
+        <div class="model-footer-links">
+            <a href="#academic-top" class="back-link">↑ Back to top</a>
+            <a href="#section-index" class="back-link">↑ Back to the section list</a>
+        </div>
+    </section>
+    {% endfor %}
+
+    <!-- ACADEMIC NOTEBOOKS -->
+    <section id="notebooks" class="model-section">
+        <span class="page-label">EXECUTABLE WORKFLOW</span>
+        <h2>Academic Notebooks (11–17)</h2>
+        <p>Each notebook below runs from top to bottom against the real ClaimWise data and can be
+            downloaded here.</p>
+
+        <ol class="notebook-flow">
+            {% for nb in notebooks %}
+            <li class="notebook-item">
+                <span class="notebook-number">{{ nb['number'] }}</span>
+                <div class="notebook-body">
+                    <span class="notebook-title">{{ nb['title'] }}</span>
+                    <span class="notebook-file">{{ nb['filename'] }}</span>
+                    <p>{{ nb['purpose'] }}</p>
+                </div>
+                <a class="notebook-link"
+                   href="{{ url_for('notebook_file', filename=nb['filename']) }}"
+                   aria-label="Download notebook {{ nb['filename'] }}">Download</a>
+            </li>
+            {% endfor %}
+        </ol>
+
+        <div class="info-box">
+            <p><strong>Honesty rules applied here:</strong> the target <code>loss</code> is never an
+                input to clustering, DBSCAN or anomaly detection; a flagged record is never called
+                fraudulent (ClaimWise has no fraud labels); PCA is described as producing components,
+                not as selecting original features; and no classification, clustering or CV number on
+                this page is mixed into the production regression metrics of the Models page.</p>
+        </div>
+    </section>
+
+    {% else %}
+    <div class="info-box">
+        <p><strong>Academic results are not available yet.</strong> Run notebooks 11–17 to generate
+            the real CSV and chart files under <code>Outputs/PCA</code>,
+            <code>Outputs/classification</code>, <code>Outputs/clustering</code>,
+            <code>Outputs/dbscan</code>, <code>Outputs/anomaly</code> and
+            <code>Outputs/CrossValidation</code>.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

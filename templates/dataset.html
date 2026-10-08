@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
+{% macro shown(value, comma=false) -%}
+    {%- if value is none -%}—
+    {%- elif comma -%}{{ '{:,}'.format(value) }}
+    {%- else -%}{{ value }}
+    {%- endif -%}
+{%- endmacro %}
+
 {% block title %}Dataset | ClaimWise Insurance Prediction System{% endblock %}
 
 {% block content %}
@@ -9,30 +16,31 @@
     <div class="page-header">
         <span class="page-label">CLAIMWISE DATASET</span>
         <h1>Understanding the data behind the prediction system.</h1>
-        <p>Summary of structural dimensions, schema modifications, and feature domain partitioning.</p>
+        <p>Summary of structural dimensions, schema modifications, and feature domain partitioning. Every value
+            below is read from the actual ClaimWise dataset files in <code>Dataset/</code>.</p>
     </div>
 
     <!-- DATASET STATS GRID -->
     <div class="cards cards-4">
         <div class="card">
             <h3>Dataset Records</h3>
-            <div class="stat-value">50,000</div>
+            <div class="stat-value">{{ shown(stats['raw_rows'], comma=true) }}</div>
             <p>Insurance claims</p>
         </div>
         <div class="card">
             <h3>Original Columns</h3>
-            <div class="stat-value">132</div>
+            <div class="stat-value">{{ shown(stats['raw_cols']) }}</div>
             <p>Initial schema</p>
         </div>
         <div class="card">
             <h3>Final Columns</h3>
-            <div class="stat-value">131</div>
+            <div class="stat-value">{{ shown(stats['final_cols']) }}</div>
             <p>Post-cleaning schema</p>
         </div>
         <div class="card">
             <h3>Input Features</h3>
-            <div class="stat-value">130</div>
-            <p>Predictor variables (\(X\))</p>
+            <div class="stat-value">{{ shown(stats['feature_count']) }}</div>
+            <p>Predictor variables (X)</p>
         </div>
     </div>
 
@@ -42,81 +50,102 @@
         <table>
             <thead>
                 <tr>
-                    <th>Property</th>
-                    <th>Specification</th>
+                    <th scope="col">Property</th>
+                    <th scope="col">Specification</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>Total Records</strong></td>
-                    <td>50,000</td>
+                    <th scope="row" class="row-header"><strong>Total Records</strong></th>
+                    <td>{{ shown(stats['raw_rows'], comma=true) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Original Columns</strong></td>
-                    <td>132</td>
+                    <th scope="row" class="row-header"><strong>Original Columns</strong></th>
+                    <td>{{ shown(stats['raw_cols']) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Final Columns</strong></td>
-                    <td>131</td>
+                    <th scope="row" class="row-header"><strong>Final Columns</strong></th>
+                    <td>{{ shown(stats['final_cols']) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Input Features</strong></td>
-                    <td>130</td>
+                    <th scope="row" class="row-header"><strong>Input Features</strong></th>
+                    <td>{{ shown(stats['feature_count']) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Target Column</strong></td>
-                    <td><code>loss</code></td>
+                    <th scope="row" class="row-header"><strong>Target Column</strong></th>
+                    <td>{% if stats['target_column'] %}<code>{{ stats['target_column'] }}</code>{% else %}—{% endif %} (regression)</td>
                 </tr>
                 <tr>
-                    <td><strong>Removed Column</strong></td>
-                    <td><code>id</code></td>
+                    <th scope="row" class="row-header"><strong>Removed Column</strong></th>
+                    <td>{% if stats['removed_column'] %}<code>{{ stats['removed_column'] }}</code> — removed during preprocessing{% else %}—{% endif %}</td>
                 </tr>
                 <tr>
-                    <td><strong>Training Records</strong></td>
-                    <td>40,000</td>
+                    <th scope="row" class="row-header"><strong>Training Records</strong></th>
+                    <td>{{ shown(stats['train_rows'], comma=true) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Testing Records</strong></td>
-                    <td>10,000</td>
+                    <th scope="row" class="row-header"><strong>Testing Records</strong></th>
+                    <td>{{ shown(stats['test_rows'], comma=true) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Missing Values</strong></td>
-                    <td>0</td>
+                    <th scope="row" class="row-header"><strong>Missing Values</strong></th>
+                    <td>{{ shown(stats['missing']) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Duplicates</strong></td>
-                    <td>0</td>
+                    <th scope="row" class="row-header"><strong>Duplicates</strong></th>
+                    <td>{{ shown(stats['duplicates']) }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <!-- FEATURE GROUPS -->
-    <h2>FEATURE GROUPS</h2>
-    <div class="cards">
+    <!-- FEATURE COMPOSITION -->
+    <h2>Feature Composition</h2>
+    <div class="cards cards-4">
         <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">👤</div>
-            <h3>Customer Information</h3>
-            <p>Demographic characteristics and customer historical risk metrics.</p>
+            <div style="font-size: 20px; margin-bottom: 6px;">🏷️</div>
+            <h3>Categorical Features</h3>
+            <div class="stat-value">{{ shown(stats['categorical_count']) }}</div>
+            <p>Columns <code>cat1</code> – <code>cat116</code>, converted to integers with
+                <code>LabelEncoder</code>.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">📄</div>
-            <h3>Policy Information</h3>
-            <p>Policy term durations, premium details, and coverage categories.</p>
+            <div style="font-size: 20px; margin-bottom: 6px;">📏</div>
+            <h3>Continuous Features</h3>
+            <div class="stat-value">{{ shown(stats['continuous_count']) }}</div>
+            <p>Columns <code>cont1</code> – <code>cont14</code>, standardised with
+                <code>StandardScaler</code>.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">📋</div>
-            <h3>Claim Information</h3>
-            <p>Incident parameters, claim types, and historical claim occurrences.</p>
+            <div style="font-size: 20px; margin-bottom: 6px;">🎯</div>
+            <h3>Target</h3>
+            <div class="stat-value" style="color: var(--accent-primary);">loss</div>
+            <p>Continuous claim loss, never scaled — the regression target.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">💵</div>
-            <h3>Coverage Information</h3>
-            <p>Financial coverage amounts, deductibles, and liability limits.</p>
+            <div style="font-size: 20px; margin-bottom: 6px;">🔑</div>
+            <h3>Identifier</h3>
+            <div class="stat-value" style="color: var(--success);">removed</div>
+            <p><code>id</code> is dropped before training so it cannot act as a predictor.</p>
         </div>
+    </div>
+
+    <!-- TARGET DISTRIBUTION -->
+    <h2>Target Distribution</h2>
+    <figure class="figure-card figure-feature">
+        <img src="{{ url_for('outputs', filename=target_distribution['src']) }}"
+             alt="{{ target_distribution['alt'] }}" loading="lazy">
+        <figcaption>{{ target_distribution['caption'] }}</figcaption>
+    </figure>
+    <div class="info-box">
+        <p>
+            The claim-loss target is right-skewed: a large number of small claims and a long tail of very large
+            claims. This shape is one reason the regression metrics above (MAE, MSE, RMSE, R²) are reported
+            instead of a classification accuracy.
+        </p>
     </div>
 
 </div>

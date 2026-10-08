@@ -121,33 +121,38 @@
         </div>
     </div>
 
-    <!-- INSURANCE INFORMATION CATEGORIES -->
-    <h2>Insurance Information</h2>
-    <p>Input features are grouped into four primary insurance data categories:</p>
+    <!-- INPUT FEATURE GROUPS -->
+    <h2>Input Features</h2>
+    <p>The model consumes the 130 input columns of the dataset, named exactly as in
+        <code>Dataset/01_raw_claimwise_50000.csv</code>:</p>
 
     <div class="cards">
         <div class="card">
-            <div style="font-size: 22px; margin-bottom: 8px;">👤</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">CUSTOMER</h3>
-            <p>Customer demographic and financial information.</p>
+            <div style="font-size: 22px; margin-bottom: 8px;">🔢</div>
+            <h3 style="color: var(--text-primary); font-size: 15px;">CONTINUOUS (cont1–cont14)</h3>
+            <p>14 numeric measurements, standardized with <code>StandardScaler</code> fitted on the 40,000
+                training rows only.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 22px; margin-bottom: 8px;">📄</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">POLICY</h3>
-            <p>Policy duration, premium and policy information.</p>
+            <div style="font-size: 22px; margin-bottom: 8px;">🏷️</div>
+            <h3 style="color: var(--text-primary); font-size: 15px;">BINARY CATEGORICAL</h3>
+            <p>73 of the 116 <code>cat1</code>–<code>cat116</code> columns have exactly two possible values and
+                are label-encoded to integers.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 22px; margin-bottom: 8px;">📋</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">CLAIM</h3>
-            <p>Claim and incident information.</p>
+            <div style="font-size: 22px; margin-bottom: 8px;">🏷️</div>
+            <h3 style="color: var(--text-primary); font-size: 15px;">MULTI-LEVEL CATEGORICAL</h3>
+            <p>The remaining 43 categorical columns hold 3 to 266 levels each, also label-encoded — no
+                category is invented or renamed.</p>
         </div>
 
         <div class="card">
-            <div style="font-size: 22px; margin-bottom: 8px;">💵</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">COVERAGE</h3>
-            <p>Coverage and insurance information.</p>
+            <div style="font-size: 22px; margin-bottom: 8px;">🎯</div>
+            <h3 style="color: var(--text-primary); font-size: 15px;">TARGET (loss)</h3>
+            <p>The continuous claim loss to predict: 10.00 to 85,923.56 in the raw dataset, mean 3035.01.
+                The unit is not defined by the dataset.</p>
         </div>
     </div>
 

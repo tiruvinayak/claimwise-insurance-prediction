@@ -19,7 +19,7 @@ def main():
     print(" - Outputs/              : Visualization charts and correlation metrics")
     print(" - Models/               : Machine Learning model artifacts")
     print(" - General_Programs/     : Utility scripts")
-    print(" - Static/ & templates/  : Web dashboard interface")
+    print(" - static/ & templates/  : Web dashboard interface")
     print("=" * 70)
 
     pipeline_script = os.path.join(os.path.dirname(__file__), "Src", "claimwise_preprocessing_pipeline.py")

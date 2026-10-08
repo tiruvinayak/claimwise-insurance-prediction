@@ -1,0 +1,2 @@
+model,accuracy,precision,recall,f1
+Decision Tree Classifier,0.6882,0.7062374245472837,0.6365101752971992,0.6695633743111488

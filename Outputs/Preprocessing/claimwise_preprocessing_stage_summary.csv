@@ -1,0 +1,10 @@
+stage,file,rows,columns,missing_values,duplicate_rows
+1. Raw,01_raw_claimwise_50000.csv,50000,132,0,0
+2. Cleaned + imputed,02_cleaned_dedup_median_imputed.csv,50000,131,0,0
+3. Label encoded,03_encoded_label.csv,50000,131,0,0
+4. Scaled,04_scaled_standardized.csv,50000,131,0,0
+5. Final preprocessed,05_preprocessed_final.csv,50000,131,0,0
+6a. X_train,06_split_X_train.csv,40000,130,0,0
+6b. X_test,06_split_X_test.csv,10000,130,0,0
+6c. y_train,06_split_y_train.csv,40000,1,0,1554
+6d. y_test,06_split_y_test.csv,10000,1,0,129
