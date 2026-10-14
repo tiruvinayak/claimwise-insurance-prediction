@@ -27,20 +27,32 @@
 
         <nav class="nav-menu">
             <a href="/" class="nav-link {% if request.path == '/' or request.path == '/index' %}active{% endif %}">Home</a>
-            <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a>
-            <a href="/dataset" class="nav-link {% if request.path == '/dataset' %}active{% endif %}">Dataset</a>
+            <a href="/dataset" class="nav-link {% if request.path.startswith('/dataset') %}active{% endif %}">Dataset</a>
+            <a href="/visualization" class="nav-link {% if request.path == '/visualization' %}active{% endif %}">EDA & Visualizations</a>
             <a href="/preprocessing" class="nav-link {% if request.path == '/preprocessing' %}active{% endif %}">Preprocessing</a>
-            <a href="/models" class="nav-link {% if request.path == '/models' %}active{% endif %}">Models</a>
-            <a href="/academic" class="nav-link {% if request.path == '/academic' %}active{% endif %}">Academic</a>
+            <a href="/models" class="nav-link {% if request.path == '/models' %}active{% endif %}">Regression Models</a>
             <a href="/prediction" class="nav-link {% if request.path == '/prediction' %}active{% endif %}">Prediction</a>
+            <a href="/outputs-gallery" class="nav-link {% if request.path.startswith('/outputs-gallery') or request.path.startswith('/gallery') %}active{% endif %}">Project Outputs</a>
+            <a href="/academic" class="nav-link {% if request.path == '/academic' %}active{% endif %}">Academic Analysis</a>
             <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
             <a href="/reports" class="nav-link {% if request.path == '/reports' %}active{% endif %}">Reports</a>
-            <a href="/contact" class="nav-link {% if request.path == '/contact' %}active{% endif %}">Contact</a>
+            <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a>
         </nav>
     </div>
 </header>
 
 <main class="main-content">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div style="max-width: 1200px; margin: 16px auto 0; padding: 0 20px;">
+        {% for message in messages %}
+        <div class="info-box" style="border-left-color: var(--error); background: #FFF5F5; margin-bottom: 12px; color: var(--error);">
+            <p style="margin: 0; font-weight: 600;">{{ message }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     {% block content %}
     {% endblock %}
 </main>
@@ -48,19 +60,235 @@
 <footer class="site-footer">
     <div class="footer-container">
         <div>
-            <div class="footer-brand">ClaimWise <span>Insurance Prediction System</span></div>
-            <div class="footer-note">Academic Machine Learning Demonstration Project</div>
+            <div class="footer-brand">ClaimWise <span>Insurance Analytics & ML Platform</span></div>
+            <div class="footer-note">Production Continuous Loss Regression & Academic Data Science Architecture</div>
         </div>
         <div class="footer-links">
             <a href="/">Home</a>
-            <a href="/about">About</a>
             <a href="/dataset">Dataset</a>
-            <a href="/academic">Academic</a>
+            <a href="/visualization">EDA & Visualizations</a>
+            <a href="/preprocessing">Preprocessing</a>
+            <a href="/models">Regression Models</a>
             <a href="/prediction">Prediction</a>
+            <a href="/outputs-gallery">Project Outputs</a>
+            <a href="/academic">Academic Analysis</a>
+            <a href="/dashboard">Dashboard</a>
             <a href="/reports">Reports</a>
+            <a href="/about">About</a>
         </div>
     </div>
 </footer>
+
+<!-- CSV PREVIEW MODAL -->
+<div id="csvPreviewModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div class="modal-title-wrap">
+                <h3 class="modal-title">
+                    <span>📄</span>
+                    <span id="csvModalTitle">CSV Data Preview</span>
+                </h3>
+                <div class="modal-subtitle">
+                    <span id="csvModalShape">0 rows × 0 cols</span>
+                    <span>•</span>
+                    <span id="csvModalSize">0 KB</span>
+                    <span>•</span>
+                    <span id="csvModalPath" style="font-family: monospace; font-size: 11.5px; opacity: 0.85;"></span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <a id="csvModalDownloadBtn" href="#" class="btn-download-sm" title="Download entire CSV file">
+                    <span>⬇️</span> Download File
+                </a>
+                <button type="button" class="modal-close-btn" onclick="closeCsvModal()" aria-label="Close modal">✕</button>
+            </div>
+        </div>
+        <div class="modal-toolbar">
+            <div class="modal-search-wrap">
+                <span class="modal-search-icon">🔍</span>
+                <input type="text" id="csvModalSearch" class="modal-search-input" placeholder="Filter rows across all columns..." oninput="handleCsvSearch(this.value)">
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">
+                Showing 20 records per page • Paginated server-side
+            </div>
+        </div>
+        <div class="modal-body" id="csvModalBody">
+            <div class="modal-loading" id="csvModalLoading">
+                <div class="spinner"></div>
+                <span>Loading artifact preview...</span>
+            </div>
+            <div id="csvModalError" style="display: none; padding: 40px; text-align: center; color: var(--error);">
+                <p style="font-weight: 700; margin-bottom: 6px;">Unable to load preview</p>
+                <p id="csvModalErrorMessage" style="font-size: 13px;"></p>
+            </div>
+            <div class="modal-table-container" id="csvModalTableContainer" style="display: none;">
+                <table class="modal-table" id="csvModalTable">
+                    <thead id="csvModalTableHead"></thead>
+                    <tbody id="csvModalTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-info-text" id="csvModalInfo">
+                Showing 0 to 0 of 0 records
+            </div>
+            <div class="modal-pagination">
+                <button type="button" class="page-btn" id="csvBtnFirst" onclick="changeCsvPage(1)" title="First Page">« First</button>
+                <button type="button" class="page-btn" id="csvBtnPrev" onclick="changeCsvPage(csvCurrentPage - 1)" title="Previous Page">‹ Prev</button>
+                <span id="csvPageIndicator" style="font-size: 13px; font-weight: 700; padding: 0 10px; color: var(--text-primary);">Page 1 of 1</span>
+                <button type="button" class="page-btn" id="csvBtnNext" onclick="changeCsvPage(csvCurrentPage + 1)" title="Next Page">Next ›</button>
+                <button type="button" class="page-btn" id="csvBtnLast" onclick="changeCsvPage(csvTotalPages)" title="Last Page">Last »</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let csvCurrentPath = '';
+let csvCurrentPage = 1;
+let csvTotalPages = 1;
+let csvSearchQuery = '';
+let csvSearchTimer = null;
+
+function openCsvModal(relPath, displayName) {
+    csvCurrentPath = relPath;
+    csvCurrentPage = 1;
+    csvSearchQuery = '';
+    
+    const searchInput = document.getElementById('csvModalSearch');
+    if (searchInput) searchInput.value = '';
+    
+    document.getElementById('csvModalTitle').textContent = displayName || relPath.split('/').pop();
+    document.getElementById('csvModalPath').textContent = relPath;
+    document.getElementById('csvModalDownloadBtn').href = '/csv/download/' + encodeURI(relPath);
+    
+    const modal = document.getElementById('csvPreviewModal');
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    
+    loadCsvData();
+}
+
+function closeCsvModal() {
+    const modal = document.getElementById('csvPreviewModal');
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function handleCsvSearch(query) {
+    clearTimeout(csvSearchTimer);
+    csvSearchTimer = setTimeout(() => {
+        csvSearchQuery = query.trim();
+        csvCurrentPage = 1;
+        loadCsvData();
+    }, 280);
+}
+
+function changeCsvPage(newPage) {
+    if (newPage < 1 || newPage > csvTotalPages || newPage === csvCurrentPage) return;
+    csvCurrentPage = newPage;
+    loadCsvData();
+}
+
+function loadCsvData() {
+    const loading = document.getElementById('csvModalLoading');
+    const tableContainer = document.getElementById('csvModalTableContainer');
+    const errorBox = document.getElementById('csvModalError');
+    
+    loading.style.display = 'flex';
+    tableContainer.style.display = 'none';
+    errorBox.style.display = 'none';
+    
+    const url = `/csv/preview?path=${encodeURIComponent(csvCurrentPath)}&page=${csvCurrentPage}&page_size=20&search=${encodeURIComponent(csvSearchQuery)}`;
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            loading.style.display = 'none';
+            if (data.error) {
+                errorBox.style.display = 'block';
+                document.getElementById('csvModalErrorMessage').textContent = data.error;
+                return;
+            }
+            
+            // Meta info
+            document.getElementById('csvModalShape').textContent = `${data.total_rows.toLocaleString()} rows × ${data.columns.length} columns`;
+            document.getElementById('csvModalSize').textContent = data.file_size_formatted || '';
+            
+            csvTotalPages = data.total_pages || 1;
+            csvCurrentPage = data.page || 1;
+            
+            // Pagination controls
+            document.getElementById('csvPageIndicator').textContent = `Page ${csvCurrentPage} of ${csvTotalPages}`;
+            document.getElementById('csvBtnFirst').disabled = (csvCurrentPage <= 1);
+            document.getElementById('csvBtnPrev').disabled = (csvCurrentPage <= 1);
+            document.getElementById('csvBtnNext').disabled = (csvCurrentPage >= csvTotalPages);
+            document.getElementById('csvBtnLast').disabled = (csvCurrentPage >= csvTotalPages);
+            
+            const startIdx = data.filtered_rows === 0 ? 0 : (csvCurrentPage - 1) * data.page_size + 1;
+            const endIdx = Math.min(csvCurrentPage * data.page_size, data.filtered_rows);
+            document.getElementById('csvModalInfo').textContent = 
+                csvSearchQuery 
+                    ? `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${data.filtered_rows.toLocaleString()} filtered records (total ${data.total_rows.toLocaleString()})`
+                    : `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${data.total_rows.toLocaleString()} records`;
+            
+            // Render table head
+            const thead = document.getElementById('csvModalTableHead');
+            thead.innerHTML = '<tr><th style="width: 50px;">#</th>' + 
+                data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('') + '</tr>';
+            
+            // Render table body
+            const tbody = document.getElementById('csvModalTableBody');
+            if (!data.rows || data.rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${data.columns.length + 1}" style="text-align: center; padding: 40px; color: var(--text-muted);">No records match your search filter.</td></tr>`;
+            } else {
+                tbody.innerHTML = data.rows.map((row, idx) => {
+                    const rowNum = startIdx + idx;
+                    const colsHtml = data.columns.map(col => {
+                        const val = row[col] !== null && row[col] !== undefined ? String(row[col]) : '';
+                        return `<td>${escapeHtml(val)}</td>`;
+                    }).join('');
+                    return `<tr><td style="font-weight: 700; color: var(--text-muted);">${rowNum}</td>${colsHtml}</tr>`;
+                }).join('');
+            }
+            
+            tableContainer.style.display = 'block';
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            errorBox.style.display = 'block';
+            document.getElementById('csvModalErrorMessage').textContent = 'Network or server error while fetching preview.';
+        });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('csvPreviewModal');
+        if (modal && modal.classList.contains('active')) {
+            closeCsvModal();
+        }
+    }
+});
+
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('csvPreviewModal');
+    if (modal && e.target === modal) {
+        closeCsvModal();
+    }
+});
+</script>
 
 </body>
 </html>

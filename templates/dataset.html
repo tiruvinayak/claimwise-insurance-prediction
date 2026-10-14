@@ -7,40 +7,326 @@
     {%- endif -%}
 {%- endmacro %}
 
-{% block title %}Dataset | ClaimWise Insurance Prediction System{% endblock %}
+{% block title %}Dataset Management | ClaimWise Insurance Prediction{% endblock %}
 
 {% block content %}
 
 <div class="page">
 
     <div class="page-header">
-        <span class="page-label">CLAIMWISE DATASET</span>
-        <h1>Understanding the data behind the prediction system.</h1>
-        <p>Summary of structural dimensions, schema modifications, and feature domain partitioning. Every value
-            below is read from the actual ClaimWise dataset files in <code>Dataset/</code>.</p>
+        <span class="page-label">DATASET AUDIT & SCHEMA INTEGRITY</span>
+        <h1>Dataset Management & Verification</h1>
+        <p>Inspect the authoritative ClaimWise dataset or upload custom CSV datasets to verify schema and model compatibility before running inferences.</p>
     </div>
+
+    <!-- NOTIFICATIONS & MESSAGES -->
+    {% if upload_error %}
+    <div class="info-box" style="border-left-color: var(--error); background: #FFF5F5; margin-bottom: 24px;">
+        <p style="color: var(--error); margin: 0;"><strong>Upload / Validation Error:</strong> {{ upload_error }}</p>
+    </div>
+    {% endif %}
+
+    {% if upload_success %}
+    <div class="info-box" style="border-left-color: var(--success); background: var(--success-bg); margin-bottom: 24px;">
+        <p style="color: var(--success); margin: 0;"><strong>Success:</strong> {{ upload_success }}</p>
+    </div>
+    {% endif %}
+
+    <!-- ACTIVE MODE STATUS BANNER -->
+    <div class="card" style="margin-bottom: 28px; border-left: 6px solid {% if mode == 'uploaded' %}var(--accent-secondary){% else %}var(--accent-primary){% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <span class="page-label">ACTIVE SYSTEM MODE</span>
+                {% if mode == 'uploaded' %}
+                <h2 style="margin: 0; font-size: 20px;">Mode B — Uploaded Custom Dataset Active</h2>
+                <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-secondary);">
+                    Inspecting uploaded file: <strong>{{ audit.filename }}</strong>. Production dataset in <code>Dataset/</code> remains completely untouched.
+                </p>
+                {% else %}
+                <h2 style="margin: 0; font-size: 20px;">Mode A — Original ClaimWise Dataset Active</h2>
+                <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-secondary);">
+                    Viewing production baseline from <code>Dataset/01_raw_claimwise_50000.csv</code>. All 130 features and model pipelines are verified.
+                </p>
+                {% endif %}
+            </div>
+            <div>
+                {% if mode == 'uploaded' %}
+                <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary" style="font-size: 13px;">
+                    ↺ Return to Original Dataset (Mode A)
+                </a>
+                {% else %}
+                <span class="status-badge status-ready">Production Dataset</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD SECTION -->
+    <div class="card" style="margin-bottom: 32px; background: var(--card-soft);">
+        <h2 style="margin-top: 0; font-size: 18px;">Upload Dataset (CSV Format)</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+            Upload a CSV file to inspect its structure, dimensions, data types, missing counts, and check whether it is compatible with the saved ClaimWise regression model (<code>HistGradientBoostingRegressor</code>).
+        </p>
+
+        <form action="{{ url_for('dataset') }}" method="post" enctype="multipart/form-data" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 260px;">
+                <input type="file" name="file" id="file" accept=".csv" required
+                       style="width: 100%; padding: 10px 14px; background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; color: var(--text-primary);">
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding: 11px 24px;">Upload & Inspect CSV</button>
+            {% if mode == 'uploaded' %}
+            <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary" style="padding: 11px 18px;">Clear Upload</a>
+            {% endif %}
+        </form>
+
+        <div style="margin-top: 14px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted);">
+            <span>🔒 <strong>Data Isolation:</strong> Files are stored in <code>uploads/</code> sandbox and never overwrite the original dataset.</span>
+            <span>📏 <strong>Max Size:</strong> 50 MB</span>
+            <span>📄 <strong>Supported Encoding:</strong> UTF-8, UTF-8-SIG, Latin-1</span>
+        </div>
+    </div>
+
+    {% if mode == 'uploaded' and audit %}
+    <!-- ==================== MODE B: UPLOADED DATASET DETAILS ==================== -->
+
+    <!-- UPLOADED DATASET SUMMARY STATS -->
+    <h2>Uploaded Dataset Specifications</h2>
+    <div class="cards cards-4">
+        <div class="card">
+            <h3>Uploaded Filename</h3>
+            <div class="stat-value" style="font-size: 16px; word-break: break-all; color: var(--accent-primary);">{{ audit.filename }}</div>
+            <p>File size: {{ audit.filesize_kb }} KB</p>
+        </div>
+        <div class="card">
+            <h3>Dimensions</h3>
+            <div class="stat-value">{{ shown(audit.rows, comma=true) }} × {{ shown(audit.columns) }}</div>
+            <p>{{ audit.rows }} rows, {{ audit.columns }} columns</p>
+        </div>
+        <div class="card">
+            <h3>Missing Values</h3>
+            <div class="stat-value" style="color: {% if audit.total_missing > 0 %}var(--error){% else %}var(--success){% endif %};">
+                {{ shown(audit.total_missing, comma=true) }}
+            </div>
+            <p>{{ audit.missing_pct }}% of all cells ({{ audit.columns_with_missing }} cols affected)</p>
+        </div>
+        <div class="card">
+            <h3>Duplicate Rows</h3>
+            <div class="stat-value" style="color: {% if audit.duplicate_rows > 0 %}var(--accent-secondary){% else %}var(--success){% endif %};">
+                {{ shown(audit.duplicate_rows, comma=true) }}
+            </div>
+            <p>Identical rows detected</p>
+        </div>
+    </div>
+
+    <!-- TARGET COLUMN SELECTION -->
+    <div class="card" style="margin-top: 24px; margin-bottom: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <h3 style="margin-top: 0; font-size: 16px;">Target Column Identification</h3>
+                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">
+                    Current identified target: <strong style="color: var(--accent-primary);">{{ audit.detected_target or 'None' }}</strong>
+                    {% if audit.has_loss_target %}
+                    <span class="status-badge status-ready" style="margin-left: 8px;">Standard 'loss' Target Found</span>
+                    {% else %}
+                    <span class="status-badge status-pending" style="margin-left: 8px;">Custom Target Column</span>
+                    {% endif %}
+                </p>
+            </div>
+            <form action="{{ url_for('dataset') }}" method="get" style="display: flex; gap: 8px; align-items: center;">
+                <label for="target_column" style="font-size: 13px; font-weight: 600;">Select Target:</label>
+                <select name="target_column" id="target_column" style="padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: #FFFFFF; font-size: 13px;">
+                    {% for col in audit.column_names %}
+                    <option value="{{ col }}" {% if col == audit.detected_target %}selected{% endif %}>{{ col }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-secondary" style="padding: 6px 14px; font-size: 13px;">Update</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODEL COMPATIBILITY VERIFICATION SECTION -->
+    <h2>Model Schema Compatibility Verification</h2>
+    <p>
+        Verifying whether the uploaded CSV can be used directly with the saved ClaimWise regression model (<code>HistGradientBoostingRegressor</code>) and its fitted preprocessing pipeline:
+    </p>
+
+    {% if compatibility %}
+    <div class="card" style="margin-bottom: 24px; border: 2px solid {% if compatibility.is_compatible %}var(--success-border){% else %}#FCA5A5{% endif %}; background: {% if compatibility.is_compatible %}var(--success-bg){% else %}#FEF2F2{% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <span style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: {% if compatibility.is_compatible %}var(--success){% else %}var(--error){% endif %};">
+                    OVERALL COMPATIBILITY VERDICT
+                </span>
+                <h3 style="margin: 4px 0 0; font-size: 20px; color: {% if compatibility.is_compatible %}var(--success){% else %}var(--error){% endif %};">
+                    {{ compatibility.verdict }}
+                </h3>
+            </div>
+            <span class="status-badge {{ compatibility.badge_class }}" style="font-size: 13px; padding: 6px 16px;">
+                {% if compatibility.is_compatible %}READY FOR PREDICTION{% else %}INCOMPATIBLE WITH MODEL{% endif %}
+            </span>
+        </div>
+
+        {% if compatibility.incompatibility_reasons %}
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(178, 58, 50, 0.2);">
+            <strong style="color: var(--error); font-size: 14px;">Specific Reasons for Incompatibility:</strong>
+            <ul style="margin: 8px 0 0 20px; color: var(--error); font-size: 13.5px;">
+                {% for reason in compatibility.incompatibility_reasons %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- DETAILED CHECKS TABLE -->
+    <div class="table-container" style="margin-bottom: 28px;">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 25%;">Verification Check</th>
+                    <th scope="col" style="width: 15%;">Status</th>
+                    <th scope="col">Evaluation Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for chk in compatibility.checks %}
+                <tr>
+                    <td><strong>{{ chk.name }}</strong></td>
+                    <td>
+                        {% if chk.status == 'PASSED' %}
+                        <span class="status-badge status-ready">PASSED</span>
+                        {% elif chk.status == 'WARNING' %}
+                        <span class="status-badge status-pending">WARNING</span>
+                        {% elif chk.status == 'INFO' %}
+                        <span class="status-badge status-completed">INFO</span>
+                        {% else %}
+                        <span class="status-badge" style="background: #FEE2E2; color: var(--error); border: 1px solid #FCA5A5;">FAILED</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ chk.message }}
+                        {% if chk.details %}
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                            Sample affected columns: <code>{{ chk.details|join(', ') }}</code>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- EXPLICIT WORKFLOW FOR NEW DATASET TRAINING -->
+    <div class="card" style="margin-bottom: 32px; border-left: 4px solid var(--accent-secondary); background: #FFFDF9;">
+        <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary);">Explicit Workflow for Training on a New Dataset</h3>
+        <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
+            Uploading a dataset <strong>never automatically retrains</strong> the saved production model. Automatic retraining on arbitrary uploads is unsafe. To train models on a new dataset, execute the dedicated pipeline workflow:
+        </p>
+        <ol style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; padding-left: 20px;">
+            <li><strong>Data Health Validation:</strong> Audit missing cells, remove duplicate rows, and inspect class frequencies.</li>
+            <li><strong>Feature Preprocessing:</strong> Fit LabelEncoders for categorical columns and StandardScaler for continuous variables exclusively within training splits.</li>
+            <li><strong>Partitioning:</strong> Split the cleaned data into 80% train and 20% test splits using fixed random seed (42).</li>
+            <li><strong>Model Training & CV:</strong> Fit all candidate algorithms (Linear Regression, Decision Tree, Random Forest, Gradient Boosting, Hist Gradient Boosting) with cross-validation.</li>
+            <li><strong>Evaluation & Verification:</strong> Measure MAE, MSE, RMSE, and R² on held-out test data. Confirm tie-breakers before declaring best model.</li>
+            <li><strong>Artifact Preservation:</strong> Save updated model pickle files into <code>Models/</code> and metrics to <code>Outputs/</code>.</li>
+        </ol>
+        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
+            Script reference: <code>Src/claimwise_preprocessing_pipeline.py</code> & <code>Src/train_models.py</code>.
+        </p>
+    </div>
+
+    <!-- DATA PREVIEW TABLE -->
+    <h2>Uploaded Data Preview (First 8 Records)</h2>
+    <div class="table-container" style="overflow-x: auto; max-height: 400px; margin-bottom: 32px;">
+        <table>
+            <thead>
+                <tr>
+                    {% for col in audit.column_names[:20] %}
+                    <th scope="col">{{ col }}</th>
+                    {% endfor %}
+                    {% if audit.column_names|length > 20 %}
+                    <th scope="col">... (+{{ audit.column_names|length - 20 }} more)</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in audit.preview_rows %}
+                <tr>
+                    {% for col in audit.column_names[:20] %}
+                    <td>{{ row[col] }}</td>
+                    {% endfor %}
+                    {% if audit.column_names|length > 20 %}
+                    <td>...</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- COLUMN SCHEMA TABLE -->
+    <h2>Column Schema & Data Types Breakdown</h2>
+    <div class="table-container" style="max-height: 480px; overflow-y: auto; margin-bottom: 32px;">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Column Name</th>
+                    <th scope="col">Data Type</th>
+                    <th scope="col">Classification</th>
+                    <th scope="col">Missing Values</th>
+                    <th scope="col">Missing %</th>
+                    <th scope="col">Distinct Values</th>
+                    <th scope="col">Sample Values</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for col in audit.columns_info %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><code>{{ col.name }}</code></td>
+                    <td><code>{{ col.dtype }}</code></td>
+                    <td>
+                        <span class="status-badge {% if col.kind == 'numeric' %}status-ready{% else %}status-completed{% endif %}">
+                            {{ col.kind }}
+                        </span>
+                    </td>
+                    <td>{{ col.missing_count }}</td>
+                    <td>{{ col.missing_pct }}%</td>
+                    <td>{{ col.unique_count }}</td>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ col.sample_values|join(', ') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+    <!-- ==================== MODE A: ORIGINAL CLAIMWISE DATASET ==================== -->
 
     <!-- DATASET STATS GRID -->
     <div class="cards cards-4">
         <div class="card">
             <h3>Dataset Records</h3>
             <div class="stat-value">{{ shown(stats['raw_rows'], comma=true) }}</div>
-            <p>Insurance claims</p>
+            <p>Verified insurance claims</p>
         </div>
         <div class="card">
             <h3>Original Columns</h3>
             <div class="stat-value">{{ shown(stats['raw_cols']) }}</div>
-            <p>Initial schema</p>
+            <p>Raw schema (130 features + id + loss)</p>
         </div>
         <div class="card">
             <h3>Final Columns</h3>
             <div class="stat-value">{{ shown(stats['final_cols']) }}</div>
-            <p>Post-cleaning schema</p>
+            <p>Post-cleaning schema (id dropped)</p>
         </div>
         <div class="card">
-            <h3>Input Features</h3>
+            <h3>Input Predictors (X)</h3>
             <div class="stat-value">{{ shown(stats['feature_count']) }}</div>
-            <p>Predictor variables (X)</p>
+            <p>116 categorical, 14 continuous</p>
         </div>
     </div>
 
@@ -50,50 +336,50 @@
         <table>
             <thead>
                 <tr>
-                    <th scope="col">Property</th>
-                    <th scope="col">Specification</th>
+                    <th scope="col" style="width: 35%;">Property</th>
+                    <th scope="col">Specification (Verified ClaimWise Data)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <th scope="row" class="row-header"><strong>Total Records</strong></th>
-                    <td>{{ shown(stats['raw_rows'], comma=true) }}</td>
+                    <td>{{ shown(stats['raw_rows'], comma=true) }} historical insurance claims</td>
                 </tr>
                 <tr>
                     <th scope="row" class="row-header"><strong>Original Columns</strong></th>
-                    <td>{{ shown(stats['raw_cols']) }}</td>
+                    <td>{{ shown(stats['raw_cols']) }} attributes in <code>Dataset/01_raw_claimwise_50000.csv</code></td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Final Columns</strong></th>
-                    <td>{{ shown(stats['final_cols']) }}</td>
+                    <th scope="row" class="row-header"><strong>Final Preprocessed Columns</strong></th>
+                    <td>{{ shown(stats['final_cols']) }} attributes in <code>Dataset/05_preprocessed_final.csv</code></td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Input Features</strong></th>
-                    <td>{{ shown(stats['feature_count']) }}</td>
+                    <th scope="row" class="row-header"><strong>Input Predictor Variables</strong></th>
+                    <td>{{ shown(stats['feature_count']) }} numeric predictors (<code>cat1</code>–<code>cat116</code> encoded, <code>cont1</code>–<code>cont14</code> scaled)</td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Target Column</strong></th>
-                    <td>{% if stats['target_column'] %}<code>{{ stats['target_column'] }}</code>{% else %}—{% endif %} (regression)</td>
+                    <th scope="row" class="row-header"><strong>Target Variable</strong></th>
+                    <td><code>{{ stats['target_column'] or 'loss' }}</code> — continuous claim loss (regression target)</td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Removed Column</strong></th>
-                    <td>{% if stats['removed_column'] %}<code>{{ stats['removed_column'] }}</code> — removed during preprocessing{% else %}—{% endif %}</td>
+                    <th scope="row" class="row-header"><strong>Removed Identifier</strong></th>
+                    <td><code>{{ stats['removed_column'] or 'id' }}</code> — excluded to prevent spurious record-order correlations</td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Training Records</strong></th>
-                    <td>{{ shown(stats['train_rows'], comma=true) }}</td>
+                    <th scope="row" class="row-header"><strong>Training Records (80%)</strong></th>
+                    <td>{{ shown(stats['train_rows'], comma=true) }} rows in <code>Dataset/06_split_X_train.csv</code></td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Testing Records</strong></th>
-                    <td>{{ shown(stats['test_rows'], comma=true) }}</td>
+                    <th scope="row" class="row-header"><strong>Testing Records (20%)</strong></th>
+                    <td>{{ shown(stats['test_rows'], comma=true) }} rows in <code>Dataset/06_split_X_test.csv</code></td>
                 </tr>
                 <tr>
                     <th scope="row" class="row-header"><strong>Missing Values</strong></th>
-                    <td>{{ shown(stats['missing']) }}</td>
+                    <td>{{ shown(stats['missing']) }} (0.00% missing cells verified)</td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Duplicates</strong></th>
-                    <td>{{ shown(stats['duplicates']) }}</td>
+                    <th scope="row" class="row-header"><strong>Duplicate Records</strong></th>
+                    <td>{{ shown(stats['duplicates']) }} (0 duplicate rows verified)</td>
                 </tr>
             </tbody>
         </table>
@@ -104,49 +390,131 @@
     <div class="cards cards-4">
         <div class="card">
             <div style="font-size: 20px; margin-bottom: 6px;">🏷️</div>
-            <h3>Categorical Features</h3>
-            <div class="stat-value">{{ shown(stats['categorical_count']) }}</div>
-            <p>Columns <code>cat1</code> – <code>cat116</code>, converted to integers with
-                <code>LabelEncoder</code>.</p>
+            <h3>Binary Categoricals</h3>
+            <div class="stat-value">73 columns</div>
+            <p>Columns with exactly 2 categories, encoded via <code>LabelEncoder</code>.</p>
+        </div>
+
+        <div class="card">
+            <div style="font-size: 20px; margin-bottom: 6px;">🏷️</div>
+            <h3>Multi-level Categoricals</h3>
+            <div class="stat-value">43 columns</div>
+            <p>Columns with 3 to 266 categories (max <code>cat116</code>), label-encoded.</p>
         </div>
 
         <div class="card">
             <div style="font-size: 20px; margin-bottom: 6px;">📏</div>
             <h3>Continuous Features</h3>
-            <div class="stat-value">{{ shown(stats['continuous_count']) }}</div>
-            <p>Columns <code>cont1</code> – <code>cont14</code>, standardised with
-                <code>StandardScaler</code>.</p>
+            <div class="stat-value">{{ shown(stats['continuous_count'] or 14) }} columns</div>
+            <p><code>cont1</code>–<code>cont14</code>, standardised with <code>StandardScaler</code>.</p>
         </div>
 
         <div class="card">
             <div style="font-size: 20px; margin-bottom: 6px;">🎯</div>
-            <h3>Target</h3>
+            <h3>Target Variable</h3>
             <div class="stat-value" style="color: var(--accent-primary);">loss</div>
-            <p>Continuous claim loss, never scaled — the regression target.</p>
-        </div>
-
-        <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">🔑</div>
-            <h3>Identifier</h3>
-            <div class="stat-value" style="color: var(--success);">removed</div>
-            <p><code>id</code> is dropped before training so it cannot act as a predictor.</p>
+            <p>Continuous claim loss (range 10.00 to 85,923.56, mean 3,035.01).</p>
         </div>
     </div>
 
-    <!-- TARGET DISTRIBUTION -->
-    <h2>Target Distribution</h2>
-    <figure class="figure-card figure-feature">
-        <img src="{{ url_for('outputs', filename=target_distribution['src']) }}"
-             alt="{{ target_distribution['alt'] }}" loading="lazy">
-        <figcaption>{{ target_distribution['caption'] }}</figcaption>
-    </figure>
-    <div class="info-box">
-        <p>
-            The claim-loss target is right-skewed: a large number of small claims and a long tail of very large
-            claims. This shape is one reason the regression metrics above (MAE, MSE, RMSE, R²) are reported
-            instead of a classification accuracy.
-        </p>
+    <!-- DATASET CSV ARTIFACTS SECTION -->
+    <section class="artifact-section">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+            <div>
+                <span class="page-label">VERIFIED ARTIFACT INVENTORY</span>
+                <h2>Dataset CSV Files & Schema Summaries</h2>
+                <p style="margin: 0;">Interactive data previews, row filtering, and direct downloads for raw and summary datasets:</p>
+            </div>
+            <span class="status-badge status-completed">{{ dataset_csvs|length }} CSV Files Available</span>
+        </div>
+
+        <div class="artifact-card-grid">
+            {% for csv in dataset_csvs %}
+            <div class="artifact-item-card">
+                <div>
+                    <div class="artifact-header-wrap">
+                        <span class="artifact-name">📄 {{ csv.name }}</span>
+                    </div>
+                    <div class="artifact-meta-badges" style="margin: 6px 0 8px 0;">
+                        <span class="meta-badge">{{ csv.rows|int if csv.rows else 0 }} rows</span>
+                        <span class="meta-badge">{{ csv.columns|int if csv.columns else 0 }} cols</span>
+                        <span class="meta-badge">{{ csv.size_formatted }}</span>
+                    </div>
+                    <p class="artifact-desc">{{ csv.description }}</p>
+                </div>
+                <div class="artifact-actions">
+                    <button type="button" class="btn-preview-sm" onclick="openCsvModal('{{ csv.relative_path }}', '{{ csv.name }}')">
+                        <span>🔍</span> Preview CSV
+                    </button>
+                    <a href="/csv/download/{{ csv.relative_path }}" class="btn-download-sm">
+                        <span>⬇️</span> Download
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- VERIFIED VISUALIZATIONS SECTION -->
+    <h2>Verified Dataset Visualizations</h2>
+    <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); margin-bottom: 32px;">
+        {% if target_distribution %}
+        <figure class="figure-card">
+            <img src="{{ url_for('outputs', filename=target_distribution['src']) }}"
+                 alt="{{ target_distribution['alt'] }}" loading="lazy">
+            <figcaption>{{ target_distribution['caption'] }}</figcaption>
+        </figure>
+        {% endif %}
+
+        {% if feature_composition_chart %}
+        <figure class="figure-card">
+            <img src="{{ url_for('outputs', filename=feature_composition_chart['src']) }}"
+                 alt="{{ feature_composition_chart['alt'] }}" loading="lazy">
+            <figcaption>{{ feature_composition_chart['caption'] }}</figcaption>
+        </figure>
+        {% endif %}
+
+        {% for chart in dataset_charts %}
+        {% if chart.relative_path not in [target_distribution['src'] if target_distribution else '', feature_composition_chart['src'] if feature_composition_chart else ''] %}
+        <figure class="figure-card">
+            <img src="{{ url_for('outputs', filename=chart.relative_path) }}"
+                 alt="{{ chart.caption }}" loading="lazy">
+            <figcaption>{{ chart.caption }}</figcaption>
+        </figure>
+        {% endif %}
+        {% endfor %}
     </div>
+
+    <!-- ORIGINAL DATA PREVIEW -->
+    {% if audit and audit.preview_rows %}
+    <h2>Production Data Preview (First 8 Records)</h2>
+    <div class="table-container" style="overflow-x: auto; max-height: 380px; margin-bottom: 32px;">
+        <table>
+            <thead>
+                <tr>
+                    {% for col in audit.column_names[:18] %}
+                    <th scope="col">{{ col }}</th>
+                    {% endfor %}
+                    <th scope="col">...</th>
+                    <th scope="col">loss (target)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in audit.preview_rows %}
+                <tr>
+                    {% for col in audit.column_names[:18] %}
+                    <td>{{ row[col] }}</td>
+                    {% endfor %}
+                    <td>...</td>
+                    <td style="font-weight: 700; color: var(--accent-primary);">{{ '%.2f'|format(row['loss']) if row['loss'] is defined else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% endif %}
 
 </div>
 

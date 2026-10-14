@@ -1,73 +1,155 @@
 {% extends "base.html" %}
 
-{% block title %}Reports | ClaimWise Insurance Prediction System{% endblock %}
+{% block title %}Reports & Artifact Inventory | ClaimWise Insurance Prediction System{% endblock %}
 
 {% block content %}
 
 <div class="page">
 
     <div class="page-header">
-        <span class="page-label">PROJECT DOCUMENTATION</span>
-        <h1>ClaimWise Project Reports</h1>
-        <p>Dataset summary, preprocessing status, and actual regression evaluation results.</p>
+        <span class="page-label">PROJECT AUDIT & ARTIFACT INVENTORY</span>
+        <h1>ClaimWise Reports & Artifact Inventory</h1>
+        <p>Comprehensive system audit, complete 13-model regression benchmark leaderboard, and verified inventory of all {{ all_csvs|length }} CSV data artifacts and {{ all_charts|length }} visualization outputs.</p>
     </div>
 
-    <h2>Dataset Summary</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Report Parameter</th><th>Actual Value</th></tr>
-            </thead>
-            <tbody>
-                <tr><td><strong>Dataset</strong></td><td>ClaimWise Insurance Claim Dataset</td></tr>
-                <tr><td><strong>Total records</strong></td><td>50,000</td></tr>
-                <tr><td><strong>Original columns</strong></td><td>132</td></tr>
-                <tr><td><strong>Final columns</strong></td><td>131</td></tr>
-                <tr><td><strong>Input features</strong></td><td>130</td></tr>
-                <tr><td><strong>Removed column</strong></td><td><code>id</code></td></tr>
-                <tr><td><strong>Target</strong></td><td><code>loss</code> (regression)</td></tr>
-                <tr><td><strong>Training / testing</strong></td><td>40,000 / 10,000</td></tr>
-            </tbody>
-        </table>
+    <!-- SUMMARY AUDIT STATS -->
+    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 28px;">
+        <div class="card">
+            <h3>Verified CSV Artifacts</h3>
+            <div class="stat-value" style="font-size: 26px; color: var(--accent-primary);">{{ all_csvs|length }} Files</div>
+            <p>Every file verified for path safety & preview</p>
+        </div>
+        <div class="card">
+            <h3>Generated Visualizations</h3>
+            <div class="stat-value" style="font-size: 26px; color: var(--accent-secondary);">{{ all_charts|length }} Charts</div>
+            <p>EDA, diagnostics, PCA, and CV charts</p>
+        </div>
+        <div class="card">
+            <h3>Trained Models</h3>
+            <div class="stat-value" style="font-size: 26px; color: var(--text-primary);">{{ kpi_cards.total_models }} Algorithms</div>
+            <p>Benchmarked on 10,000 held-out test claims</p>
+        </div>
+        <div class="card">
+            <h3>Production Predictor</h3>
+            <div class="stat-value" style="font-size: 18px; color: var(--accent-primary); line-height: 1.3;">{{ kpi_cards.best_model }}</div>
+            <p>Lowest test RMSE (${{ '%.2f'|format(kpi_cards.lowest_rmse) }})</p>
+        </div>
     </div>
 
-    <h2>Preprocessing Summary</h2>
-    <div class="info-box">
-        <p>Existing preprocessing was kept unchanged for model integration. The saved training and test files contain 130 numeric feature columns, the target file contains <code>loss</code>, and the supplied data has 0 missing values and 0 duplicate records after preprocessing.</p>
-    </div>
-
-    <h2>Model Comparison</h2>
+    <!-- MODEL BENCHMARK TABLE -->
+    <h2>13-Model Benchmark Leaderboard</h2>
     {% if model_ready %}
-    <div class="table-container">
+    <div class="table-container" style="margin-bottom: 16px;">
         <table>
+            <caption class="sr-only">Comprehensive evaluation metrics for all thirteen ClaimWise regression algorithms</caption>
             <thead>
-                <tr><th>Model</th><th>MAE</th><th>MSE</th><th>RMSE</th><th>R²</th></tr>
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Model Name</th>
+                    <th scope="col">MAE ($)</th>
+                    <th scope="col">RMSE ($)</th>
+                    <th scope="col">R² Score</th>
+                    <th scope="col">Explained Variance</th>
+                    <th scope="col">Median AE ($)</th>
+                    <th scope="col">MAPE</th>
+                    <th scope="col">Status</th>
+                </tr>
             </thead>
             <tbody>
                 {% for row in model_rows %}
-                <tr {% if row['Model'] == best_name %}style="border-left: 4px solid var(--success);"{% endif %}>
-                    <td><strong>{{ row['Model'] }}</strong>{% if row['Model'] == best_name %} <span class="status-badge status-ready">Best</span>{% endif %}</td>
-                    <td>{{ '%.2f'|format(row['MAE']) }}</td>
-                    <td>{{ '%.2f'|format(row['MSE']) }}</td>
-                    <td>{{ '%.2f'|format(row['RMSE']) }}</td>
-                    <td>{{ '%.4f'|format(row['R2']) }}</td>
+                <tr {% if row['Model'] == best_name %}class="row-best"{% endif %}>
+                    <td><strong>#{{ loop.index }}</strong></td>
+                    <td class="row-header"><strong>{{ row['Model'] }}</strong></td>
+                    <td>${{ '%.2f'|format(row['MAE']) }}</td>
+                    <td style="font-weight: 700; {% if row['Model'] == best_name %}color: var(--accent-primary);{% endif %}">${{ '%.2f'|format(row['RMSE']) }}</td>
+                    <td style="font-weight: 700; {% if row['Model'] == best_name %}color: var(--accent-primary);{% endif %}">{{ '%.4f'|format(row['R2']) }}</td>
+                    <td>{{ '%.4f'|format(row['Explained_Variance'] if row['Explained_Variance'] is defined else row['R2']) }}</td>
+                    <td>${{ '%.2f'|format(row['Median_AE'] if row['Median_AE'] is defined else 0.0) }}</td>
+                    <td>{{ '%.4f'|format(row['MAPE'] if row['MAPE'] is defined else 0.0) }}</td>
+                    <td>
+                        {% if row['Model'] == best_name %}
+                        <span class="status-badge status-ready">Rank #1 Best</span>
+                        {% else %}
+                        <span class="status-badge status-completed">Evaluated</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <div class="info-box">
-        <p><strong>Best model:</strong> {{ best_name }}. It was selected from the actual comparison CSV by lowest RMSE, followed by MAE, MSE, and higher R² as tie-breakers.</p>
-    </div>
-    {% else %}
-    <div class="info-box">
-        <p><strong>Model comparison is pending.</strong> Run <code>Src/train_models.py</code> to generate the real evaluation report.</p>
+    <div class="info-box" style="margin-bottom: 32px;">
+        <p style="margin: 0;"><strong>Benchmark Criteria:</strong> Selection is based objectively on out-of-sample RMSE on identical 10,000 test claims (random_state=42), followed by MAE and R² as secondary criteria. No classification accuracy is used for this continuous claim loss problem.</p>
     </div>
     {% endif %}
 
-    <h2>Final Project Status</h2>
-    <div class="info-box">
-        <p><strong>Dataset → preprocessing → EDA → regression model training → evaluation → Flask integration.</strong> {% if model_ready %}The model development stage is complete and the best model is available for the test-row prediction page.{% else %}The existing data preparation is complete; model training is the remaining step.{% endif %}</p>
+    <!-- COMPLETE CSV ARTIFACT INVENTORY TABLE -->
+    <h2>Verified Project CSV Artifacts Inventory</h2>
+    <p>Every CSV generated during data loading, preprocessing, model benchmarking, exploratory analysis, and academic research is inventoried below with safe modal pagination and instant download:</p>
+
+    <div class="table-container" style="max-height: 560px; overflow-y: auto; margin-bottom: 32px;">
+        <table>
+            <caption class="sr-only">Complete inventory of project CSV files</caption>
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 40px;">#</th>
+                    <th scope="col">File Name</th>
+                    <th scope="col">Topic Area</th>
+                    <th scope="col">Shape</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for csv in all_csvs %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>
+                        <strong>{{ csv.name or csv.filename }}</strong>
+                        <div style="font-size: 11px; font-family: monospace; color: var(--text-muted); opacity: 0.85;">{{ csv.relative_path }}</div>
+                    </td>
+                    <td>
+                        <span class="status-badge {% if csv.page == 'models' %}status-ready{% elif csv.page == 'dataset' %}status-completed{% else %}status-info{% endif %}" style="font-size: 11px; text-transform: uppercase;">
+                            {{ csv.page }}
+                        </span>
+                    </td>
+                    <td style="font-size: 12.5px;">{{ csv.rows|int if csv.rows else 0 }} × {{ csv.columns|int if csv.columns else 0 }}</td>
+                    <td style="font-size: 12px; color: var(--text-secondary);">{{ csv.size_formatted }}</td>
+                    <td style="font-size: 12.5px; max-width: 340px; color: var(--text-secondary);">{{ csv.description }}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" class="btn-preview-sm" onclick="openCsvModal('{{ csv.relative_path }}', '{{ csv.name or csv.filename }}')">
+                            <span>🔍</span> Preview
+                        </button>
+                        <a href="/csv/download/{{ csv.relative_path }}" class="btn-download-sm">
+                            <span>⬇️</span> Download
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DATASET & PREPROCESSING TECHNICAL AUDIT -->
+    <h2>Technical Dataset & Schema Specifications</h2>
+    <div class="table-container" style="margin-bottom: 32px;">
+        <table>
+            <thead>
+                <tr><th style="width: 35%;">Audit Metric</th><th>Empirical Value</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Dataset Source</strong></td><td>Allstate Claims Severity (Production 50,000 Subset)</td></tr>
+                <tr><td><strong>Raw Input Matrix</strong></td><td>50,000 rows × 132 columns (<code>Dataset/01_raw_claimwise_50000.csv</code>)</td></tr>
+                <tr><td><strong>Preprocessed Matrix</strong></td><td>50,000 rows × 131 columns (<code>id</code> column dropped)</td></tr>
+                <tr><td><strong>Predictor Variables (X)</strong></td><td>130 features (116 categorical encoded, 14 continuous standardized)</td></tr>
+                <tr><td><strong>Target Variable (y)</strong></td><td><code>loss</code> (continuous dollar amount, range $10.00 – $85,923.56)</td></tr>
+                <tr><td><strong>Data Leakage Control</strong></td><td>StandardScaler fitted strictly on 40,000 train rows (train mean = 0.000000)</td></tr>
+                <tr><td><strong>Held-Out Test Partition</strong></td><td>10,000 claims (test mean = 0.023239 transformed only)</td></tr>
+                <tr><td><strong>Missing Values</strong></td><td>0 in cleaned matrix</td></tr>
+                <tr><td><strong>Duplicate Rows</strong></td><td>0 in cleaned matrix</td></tr>
+            </tbody>
+        </table>
     </div>
 
 </div>

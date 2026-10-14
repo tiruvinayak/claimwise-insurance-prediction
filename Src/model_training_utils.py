@@ -86,16 +86,57 @@ def reduce_numeric_memory(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+from sklearn.metrics import (
+    explained_variance_score,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+    median_absolute_error,
+    r2_score,
+)
+
+
 def calculate_metrics(y_test: pd.Series, predictions) -> Dict[str, float]:
     """Calculate real regression metrics from test targets and predictions."""
 
-    mse = mean_squared_error(y_test, predictions)
+    y_true = np.asarray(y_test, dtype=float)
+    y_pred = np.asarray(predictions, dtype=float)
+    mse = float(mean_squared_error(y_true, y_pred))
+    mae = float(mean_absolute_error(y_true, y_pred))
+    rmse = float(mse ** 0.5)
+    r2 = float(r2_score(y_true, y_pred))
+    ev = float(explained_variance_score(y_true, y_pred))
+    medae = float(median_absolute_error(y_true, y_pred))
+    mape = float(mean_absolute_percentage_error(y_true, y_pred))
+
     return {
-        "MAE": float(mean_absolute_error(y_test, predictions)),
-        "MSE": float(mse),
-        "RMSE": float(mse ** 0.5),
-        "R2": float(r2_score(y_test, predictions)),
+        "MAE": mae,
+        "MSE": mse,
+        "RMSE": rmse,
+        "R2": r2,
+        "Explained_Variance": ev,
+        "Median_AE": medae,
+        "MAPE": mape,
     }
+
+
+def model_folder_name(model_name: str) -> str:
+    """Deterministic output folder name for any regression model."""
+    fixed = (
+        model_name.replace(" ", "_")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("-", "_")
+    )
+    # Special casing to preserve exact legacy directory names
+    legacy_map = {
+        "Linear_Regression": "Linear_Regression",
+        "Decision_Tree_Regressor": "Decision_Tree_Regressor",
+        "Random_Forest_Regressor": "Random_Forest_Regressor",
+        "Gradient_Boosting_Regressor": "Gradient_Boosting_Regressor",
+        "Hist_Gradient_Boosting_Regressor": "Hist_Gradient_Boosting_Regressor",
+    }
+    return legacy_map.get(fixed, fixed)
 
 
 def save_model_results(
@@ -106,16 +147,9 @@ def save_model_results(
     y_test: pd.Series,
     predictions,
 ) -> Dict[str, float]:
-    """Save one model, its predictions, and its one-row metrics CSV."""
+    """Save one model, its predictions, diagnostic plots, and its one-row metrics CSV."""
 
-    folder_name = {
-        "Linear Regression": "Linear_Regression",
-        "Decision Tree Regressor": "Decision_Tree_Regressor",
-        "Random Forest Regressor": "Random_Forest_Regressor",
-        "Gradient Boosting Regressor": "Gradient_Boosting_Regressor",
-        "Hist Gradient Boosting Regressor": "Hist_Gradient_Boosting_Regressor",
-    }[model_name]
-
+    folder_name = model_folder_name(model_name)
     output_dir = OUTPUTS_DIR / folder_name
     output_dir.mkdir(parents=True, exist_ok=True)
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,6 +167,8 @@ def save_model_results(
     )
     predictions_frame.to_csv(output_dir / "predictions.csv", index=False)
     joblib.dump(model, MODELS_DIR / model_filename)
+
+    save_model_diagnostic_plots(model_name, folder_name, y_test, predictions)
 
     return metrics
 
@@ -242,8 +278,55 @@ def save_random_forest_feature_importance(model, feature_names) -> None:
     plt.close()
 
 
+import json
+
+
+def save_model_comparison_chart(ranked_df: pd.DataFrame) -> None:
+    """Generate and save the comparative bar chart for evaluated regression models."""
+    comparison_dir = OUTPUTS_DIR / "Model_Comparison"
+    comparison_dir.mkdir(parents=True, exist_ok=True)
+    bar_path = comparison_dir / "model_comparison_bar_chart.png"
+
+    ordered = ranked_df.sort_values("RMSE", ascending=True)
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+    # RMSE bar chart (lower is better)
+    bars1 = axes[0].barh(ordered["Model"], ordered["RMSE"], color="#0D9488", edgecolor="#0F766E")
+    axes[0].set_title("RMSE on 10,000 Test Records (Lower is Better)", fontsize=13, fontweight="bold", pad=10)
+    axes[0].set_xlabel("RMSE (Loss Scale)", fontsize=11)
+    axes[0].invert_yaxis()
+    axes[0].grid(axis="x", linestyle="--", alpha=0.5)
+    for bar in bars1:
+        width = bar.get_width()
+        axes[0].text(width + 25, bar.get_y() + bar.get_height() / 2, f"{width:,.1f}",
+                     ha="left", va="center", fontsize=9, fontweight="bold", color="#134E4A")
+
+    # R2 bar chart (higher is better)
+    # Clip negative R2 at -0.1 for plotting display so chart stays clean
+    r2_plot_vals = ordered["R2"].clip(lower=-0.15)
+    colors2 = ["#10B981" if v > 0.4 else ("#F59E0B" if v > 0 else "#EF4444") for v in ordered["R2"]]
+    bars2 = axes[1].barh(ordered["Model"], r2_plot_vals, color=colors2, edgecolor="#047857")
+    axes[1].set_title("R² Score (Higher is Better)", fontsize=13, fontweight="bold", pad=10)
+    axes[1].set_xlabel("Coefficient of Determination (R²)", fontsize=11)
+    axes[1].axvline(0, color="#1E293B", linewidth=1.2, linestyle="-")
+    axes[1].invert_yaxis()
+    axes[1].grid(axis="x", linestyle="--", alpha=0.5)
+    for bar, real_r2 in zip(bars2, ordered["R2"]):
+        width = bar.get_width()
+        x_pos = max(width + 0.02, 0.02) if width >= 0 else width - 0.02
+        ha = "left" if width >= 0 else "right"
+        axes[1].text(x_pos, bar.get_y() + bar.get_height() / 2, f"{real_r2:.4f}",
+                     ha=ha, va="center", fontsize=9, fontweight="bold", color="#064E3B" if real_r2 > 0 else "#991B1B")
+
+    fig.suptitle("ClaimWise Regression Model Comparison — 10,000 Held-Out Test Records", fontsize=15, fontweight="bold", y=0.98)
+    fig.tight_layout()
+    fig.savefig(bar_path, dpi=160, bbox_inches="tight")
+    plt.close(fig)
+
+
 def write_model_comparison(results: Dict[str, Dict[str, float]]) -> Tuple[str, Dict[str, float]]:
-    """Write comparison CSV and select best model by actual test performance.
+    """Write comparison CSV/JSON and select best model by actual test performance.
 
     Lower RMSE is the primary selection metric. MAE, MSE, and then higher R2
     are deterministic tie-breakers; no model name is manually preferred.
@@ -259,6 +342,13 @@ def write_model_comparison(results: Dict[str, Dict[str, float]]) -> Tuple[str, D
         ascending=[True, True, True, False],
     ).reset_index(drop=True)
     ranked.to_csv(comparison_dir / "model_comparison.csv", index=False)
+
+    # Also save structured JSON format for fast reliable loading
+    comparison_json_path = comparison_dir / "model_comparison.json"
+    with open(comparison_json_path, "w", encoding="utf-8") as f:
+        json.dump(ranked.to_dict(orient="records"), f, indent=2)
+
+    save_model_comparison_chart(ranked)
 
     best_name = str(ranked.iloc[0]["Model"])
     best_metrics = results[best_name]

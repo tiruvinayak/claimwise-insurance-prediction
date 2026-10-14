@@ -4,178 +4,504 @@
 
 {% block content %}
 
-<div class="page">
+<div class="prediction-page-wrapper">
+    <div class="page" style="padding-top: 24px; max-width: 1200px; margin: 0 auto; padding-left: 20px; padding-right: 20px;">
 
-    <div class="page-header">
-        <span class="page-label">PREDICTION INTERFACE</span>
-        <h1>Insurance Claim Loss Prediction</h1>
-        <p>Enter the real ClaimWise feature values — 14 continuous (<code>cont1</code>–<code>cont14</code>)
-            and 116 categorical (<code>cat1</code>–<code>cat116</code>) columns — and read the numeric
-            loss predicted by the saved best model. The saved <code>LabelEncoder</code> and
-            <code>StandardScaler</code> from the training pipeline transform your input first, so the
-            model receives exactly the same kind of data it was trained on.</p>
-    </div>
-
-    {% if error %}
-    <div class="info-box" style="border-left-color: var(--error);">
-        <p><strong>Prediction error:</strong> {{ error }}</p>
-    </div>
-    {% endif %}
-
-    {% if manual %}
-    <h2>Prediction Result</h2>
-    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="card">
-            <h3>Predicted Loss</h3>
-            <div class="stat-value" style="color: var(--accent-primary);">{{ '%.2f'|format(manual['predicted_loss']) }}</div>
-            <p>Output from {{ manual['model'] }}</p>
-        </div>
-        <div class="card">
-            <h3>Model Used</h3>
-            <div class="stat-value" style="font-size: 17px;">{{ manual['model'] }}</div>
-            <p>Lowest test-set RMSE of the five trained models</p>
-        </div>
-        <div class="card">
-            <h3>Features Passed</h3>
-            <div class="stat-value">{{ manual['feature_count'] }}</div>
-            <p>Label-encoded and scaled, order validated against the model</p>
-        </div>
-        {% if manual['test_mean_loss'] is defined and manual['test_mean_loss'] %}
-        <div class="card">
-            <h3>Test-Set Mean Loss</h3>
-            <div class="stat-value">{{ '%.2f'|format(manual['test_mean_loss']) }}</div>
-            <p>Average actual loss on the 10,000 held-out test rows</p>
-        </div>
-        {% endif %}
-    </div>
-    <p class="form-hint" style="margin-top: 12px;">The dataset does not define a currency or unit for
-        <code>loss</code>, so the predicted value is reported as a plain number on the same scale as the
-        target column (10.00 to 85,923.56 in the raw data).</p>
-
-    {% if manual['warnings'] %}
-    <div class="warning-box">
-        <p><strong>Checked against the dataset ranges:</strong></p>
-        <ul>
-            {% for item in manual['warnings'] %}
-            <li>{{ item }}</li>
-            {% endfor %}
-        </ul>
-        <p>The prediction was still generated; values outside the observed range are extrapolation.</p>
-    </div>
-    {% endif %}
-    {% endif %}
-
-    {% if result %}
-    <h2>Test-Row Prediction Result</h2>
-    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="card">
-            <h3>Test Row</h3>
-            <div class="stat-value">{{ result['row_index'] }}</div>
-            <p>Selected from the prepared test set</p>
-        </div>
-        <div class="card">
-            <h3>Predicted Loss</h3>
-            <div class="stat-value" style="color: var(--accent-primary);">{{ '%.2f'|format(result['predicted_loss']) }}</div>
-            <p>Output from {{ best_name }}</p>
-        </div>
-        <div class="card">
-            <h3>Actual Test Loss</h3>
-            <div class="stat-value">{{ '%.2f'|format(result['actual_loss']) }}</div>
-            <p>Stored target for this test row</p>
-        </div>
-        <div class="card">
-            <h3>Features Passed</h3>
-            <div class="stat-value">{{ result['feature_count'] }}</div>
-            <p>Validated against the trained model</p>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if model_ready and form_groups %}
-    <h2>Enter Feature Values</h2>
-    <form method="post" action="{{ url_for('prediction') }}">
-        <input type="hidden" name="mode" value="manual">
-        <div class="form-section">
-            <div class="form-section-title">RAW CLAIMWISE FEATURES (130 COLUMNS)</div>
-
-            {% for group in form_groups %}
-            <details class="form-details" {% if group['open'] %}open{% endif %}>
-                <summary>{{ group['title'] }}</summary>
-                <div class="form-details-body">
-                    <p class="form-details-hint">{{ group['description'] }}</p>
-                    <div class="form-grid">
-                        {% for field in group['fields'] %}
-                        {% if field['kind'] == 'number' %}
-                        <div class="form-group">
-                            <label for="id_{{ field['name'] }}">{{ field['name'] }}</label>
-                            <input id="id_{{ field['name'] }}" name="{{ field['name'] }}" type="number"
-                                   step="{{ field['step'] }}" min="{{ field['min'] }}" max="{{ field['max'] }}"
-                                   value="{{ field['default'] }}" required>
-                            <p class="form-hint">Dataset range {{ '%.6g'|format(field['min']) }} to
-                                {{ '%.6g'|format(field['max']) }} · default = median</p>
-                        </div>
-                        {% else %}
-                        <div class="form-group">
-                            <label for="id_{{ field['name'] }}">{{ field['name'] }}
-                                <span class="form-badge">{{ field['cardinality'] }} values</span>
-                            </label>
-                            <select id="id_{{ field['name'] }}" name="{{ field['name'] }}" required>
-                                {% for option in field['options'] %}
-                                <option value="{{ option }}"{% if option == field['default'] %} selected{% endif %}>{{ option }}</option>
-                                {% endfor %}
-                            </select>
-                            <p class="form-hint">Default = most frequent value in the raw dataset</p>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
+        <!-- ACTIVE DATASET CONTEXT (if user uploaded a custom dataset in Dataset Management) -->
+        {% if upload_info and upload_info.active %}
+        <div class="card" style="margin-bottom: 24px; border-left: 4px solid var(--accent-secondary); background: #FFFFFF; padding: 18px 24px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <strong style="color: var(--text-primary);">Uploaded Dataset Active:</strong>
+                    <span style="color: var(--text-secondary); margin-left: 6px;"><code>{{ upload_info.filename }}</code></span>
+                    <p style="margin: 4px 0 0; font-size: 13.5px; color: var(--text-muted);">
+                        Prediction engine operates using the production fitted preprocessing pipeline and regression model. Schema compatibility can be verified on the <a href="/dataset" style="color: var(--accent-primary); font-weight: 600;">Dataset Management</a> page.
+                    </p>
                 </div>
-            </details>
-            {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">PREDICT CLAIM LOSS</button>
-    </form>
-
-    <h2 style="margin-top: 34px;">Alternative: Predict a Prepared Test Row</h2>
-    <div class="info-box">
-        <p>
-            <strong>Secondary demo:</strong> instead of typing values, pick a row that already exists in
-            <code>Dataset/06_split_X_test.csv</code>. The row is passed to the saved model unchanged and its
-            stored <code>loss</code> value is shown next to the prediction.
-        </p>
-    </div>
-    <form method="post" action="{{ url_for('prediction') }}">
-        <input type="hidden" name="mode" value="test">
-        <div class="form-section">
-            <div class="form-section-title">MODEL-READY TEST SAMPLE</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="row_index">Test row number</label>
-                    <input id="row_index" name="row_index" type="number" min="0" max="{{ test_row_count - 1 }}"
-                           value="0" required>
-                    <p class="form-hint">Valid range: 0 to {{ test_row_count - 1 }}.</p>
-                </div>
-                <div class="form-group">
-                    <label>Selected best model</label>
-                    <input type="text" value="{{ best_name }}" readonly>
-                    <p class="form-hint">The model selected from actual test metrics.</p>
-                </div>
-                <div class="form-group">
-                    <label>Feature structure</label>
-                    <input type="text" value="{{ feature_count }} numeric features" readonly>
-                    <p class="form-hint">No silent defaults or invented fields are used.</p>
-                </div>
+                <a href="/dataset" class="btn btn-secondary" style="font-size: 13px; padding: 7px 16px;">View Dataset Health</a>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">PREDICT TEST ROW</button>
-    </form>
-    {% else %}
-    <div class="info-box">
-        <p><strong>Prediction is unavailable.</strong> Run <code>.venv/bin/python Src/train_models.py</code>
-            first so the best model and its evaluation results are created.</p>
-    </div>
-    {% endif %}
+        {% endif %}
 
+        <!-- ERROR STATE (Shown ONLY on validation failure or backend error) -->
+        {% if error %}
+        <section class="results-section" id="prediction-error" aria-label="Prediction Error" style="margin-bottom: 30px;">
+            <div class="results-header-bar" style="border-bottom: 2px solid #FCA5A5; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <span class="results-badge-label" style="background: #FEE2E2; color: #C53030; border: 1px solid #FCA5A5; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">PREDICTION STATUS</span>
+                    <h2 class="results-main-heading" style="color: #C53030; font-size: 22px; font-weight: 800; margin-top: 6px;">Prediction Could Not Be Completed</h2>
+                    <p class="results-header-sub" style="color: var(--text-secondary); font-size: 14px; margin-top: 2px;">The regression model could not generate a valid prediction for the submitted inputs.</p>
+                </div>
+                <div class="results-status-badge status-error-badge" style="background: #FEE2E2; color: #991B1B; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                    <span class="status-dot error-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></span>
+                    <span>Prediction Status: Failed</span>
+                </div>
+            </div>
+            <div class="card" style="border-left: 5px solid #C53030; background: #FFFFFF; padding: 20px 24px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                <p style="color: var(--text-primary); font-size: 15px; margin-bottom: 8px;">
+                    <strong>Validation / Prediction Error:</strong> {{ error }}
+                </p>
+                <p style="color: var(--text-secondary); font-size: 13.5px; margin: 0;">
+                    Please review the input form below. Ensure all 14 continuous fields (<code>cont1</code>–<code>cont14</code>) contain valid finite numeric entries and that categorical selections belong to the known dataset categories.
+                </p>
+                <div style="margin-top: 16px;">
+                    <a href="#prediction-form" class="btn btn-secondary" onclick="scrollToForm(event)">Review & Correct Form</a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- PREDICTION RESULTS (Shown ONLY when backend successfully generates a prediction) -->
+        {% if manual %}
+        <section class="results-section" id="prediction-results" aria-label="Prediction Results" style="margin-bottom: 36px;">
+            <!-- Section Header with Status Badges -->
+            <div class="results-header-bar" style="border-bottom: 2px solid var(--accent-light); padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <span class="results-badge-label" style="background: var(--accent-light-bg); color: var(--accent-primary); border: 1px solid var(--accent-light); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">PREDICTION RESULTS</span>
+                    <h2 class="results-main-heading" style="color: var(--text-primary); font-size: 24px; font-weight: 800; margin-top: 6px;">Your Prediction Results</h2>
+                    <p class="results-header-sub" style="color: var(--text-secondary); font-size: 14px; margin-top: 2px;">Model-driven regression estimate from historical ClaimWise insurance patterns</p>
+                </div>
+                <div class="results-status-badge" style="background: var(--accent-light-bg); color: var(--accent-primary); padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                    <span class="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary);"></span>
+                    <span>Prediction Status: Succeeded</span>
+                    <span style="opacity: 0.8; margin-left: 4px; font-weight: 500;">· Prediction generated successfully.</span>
+                </div>
+            </div>
+
+            <!-- Hero Result Card: Prediction Loss + Model + Key Stats -->
+            <div class="results-hero-card" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-md); margin-bottom: 20px;">
+                <div class="hero-loss-display" style="border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 20px;">
+                    <span class="hero-loss-caption" style="font-size: 13px; font-weight: 700; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.6px;">Estimated Insurance Claim Loss · Predicted Insurance Loss</span>
+                    <div class="hero-loss-val-container" style="display: flex; align-items: baseline; gap: 16px; margin-top: 8px; flex-wrap: wrap;">
+                        <span class="hero-loss-numerical-val" style="font-size: 42px; font-weight: 800; color: var(--text-primary); font-family: 'Manrope', 'Inter', sans-serif;">{{ '{:,.2f}'.format(manual['predicted_loss']) }}</span>
+                        <span class="hero-loss-scale-pill" style="background: var(--accent-light-bg); color: var(--accent-primary); padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--accent-light);">Numerical Loss Scale</span>
+                    </div>
+                    <p class="hero-loss-currency-note" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
+                        Target: <code>loss</code> (numerical estimate on historical dataset scale: 10.00 – 85,923.56). The ClaimWise dataset schema does not define currency units for <code>loss</code>.
+                    </p>
+                </div>
+
+                <div class="hero-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                    <div class="hero-meta-cell" style="background: var(--card-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <span class="hero-meta-title" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Model Used</span>
+                        <span class="hero-meta-val highlight-text" style="display: block; font-size: 16px; font-weight: 700; color: var(--accent-primary); margin-top: 4px;">{{ manual['model_name_exact'] }}</span>
+                        <p class="hero-meta-desc" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Production Model: {{ manual['model'] }} (Lowest test RMSE: 1,921.02)</p>
+                    </div>
+                    <div class="hero-meta-cell" style="background: var(--card-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <span class="hero-meta-title" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Features Processed</span>
+                        <span class="hero-meta-val" style="display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ manual['feature_count'] }} features</span>
+                        <p class="hero-meta-desc" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">14 continuous + 116 categorical (100% encoded & scaled)</p>
+                    </div>
+                    <div class="hero-meta-cell" style="background: var(--card-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <span class="hero-meta-title" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Inference Timestamp</span>
+                        <span class="hero-meta-val" style="display: block; font-size: 14px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ manual.get('timestamp', '2026-10-14 UTC') }}</span>
+                        <p class="hero-meta-desc" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Generated deterministically via pipeline</p>
+                    </div>
+                    <div class="hero-meta-cell" style="background: var(--card-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <span class="hero-meta-title" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Baseline Comparison</span>
+                        {% if manual['test_mean_loss'] is defined and manual['test_mean_loss'] %}
+                        <span class="hero-meta-val" style="display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ '{:,.2f}'.format(manual['test_mean_loss']) }}</span>
+                        <p class="hero-meta-desc" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Held-out test set average across 10,000 records</p>
+                        {% else %}
+                        <span class="hero-meta-val" style="display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">2,107.76</span>
+                        <p class="hero-meta-desc" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Historical training median loss benchmark</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- What Does This Estimate Mean? Section -->
+            <div class="results-explanation-card" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 22px 26px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+                <div class="explanation-heading-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span class="explanation-badge-icon" style="font-size: 20px;">💡</span>
+                    <h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary);">What does this estimate mean? <span style="font-size: 14px; font-weight: 500; color: var(--text-muted);">(What does this mean?)</span></h3>
+                </div>
+                <div class="explanation-quote-text" style="font-size: 14.5px; color: var(--text-primary); background: var(--card-soft); padding: 14px 18px; border-left: 4px solid var(--accent-primary); border-radius: 4px; font-style: italic; margin-bottom: 14px;">
+                    "Based on the information provided, the machine learning model estimates the insurance claim loss at the displayed value. This is an estimate based on patterns learned from historical data and is not a guaranteed claim settlement or insurance payout."
+                </div>
+                <div class="explanation-detail-note" style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;">
+                    <p style="margin: 0;">
+                        <strong>Important Estimation Disclaimer:</strong> The predicted value of <strong>{{ '{:,.2f}'.format(manual['predicted_loss']) }}</strong> is a machine learning statistical estimate derived by the regression model from historical ClaimWise patterns. It represents an expected numerical claim severity value, <strong>not a guaranteed insurance payout, claim approval, or legal financial settlement</strong>. The dataset schema does not define currency units for <code>loss</code>.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons Bar -->
+            <div class="results-actions-bar" style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+                <a href="{{ url_for('prediction') }}" class="results-action-btn btn btn-secondary" id="btn-predict-again" title="Start a fresh prediction with default inputs" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                    Predict Again
+                </a>
+                <a href="#prediction-form" class="results-action-btn btn btn-primary" id="btn-edit-info" onclick="scrollToForm(event)" title="Modify the submitted features below" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit Information
+                </a>
+                <a href="{{ url_for('models') }}#hist-gradient-boosting-regressor" class="results-action-btn btn btn-secondary" id="btn-view-model-details" title="Explore model diagnostics and metrics" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    View Model Details
+                </a>
+            </div>
+
+            <!-- Input Summary Section (Verified submitted information) -->
+            <div class="results-input-summary-card" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm);">
+                <div class="summary-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Input Summary & Feature Verification</h3>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); margin: 0;">Readable verification of the 130 submitted features processed by the production pipeline</p>
+                    </div>
+                    <span class="summary-feature-badge" style="background: var(--accent-light-bg); color: var(--accent-primary); border: 1px solid var(--accent-light); padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;">
+                        130 Features Verified
+                    </span>
+                </div>
+
+                <div class="summary-stats-pills-row" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px;">
+                    <div class="summary-stat-pill" style="background: var(--card-soft); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12.5px;">
+                        <span class="pill-label" style="color: var(--text-muted); display: block; font-size: 11px; text-transform: uppercase;">Continuous Features</span>
+                        <span class="pill-val" style="font-weight: 700; color: var(--text-primary);">14 columns (cont1–cont14)</span>
+                    </div>
+                    <div class="summary-stat-pill" style="background: var(--card-soft); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12.5px;">
+                        <span class="pill-label" style="color: var(--text-muted); display: block; font-size: 11px; text-transform: uppercase;">Categorical Features</span>
+                        <span class="pill-val" style="font-weight: 700; color: var(--text-primary);">116 columns (cat1–cat116)</span>
+                    </div>
+                    <div class="summary-stat-pill" style="background: var(--card-soft); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12.5px;">
+                        <span class="pill-label" style="color: var(--text-muted); display: block; font-size: 11px; text-transform: uppercase;">Pipeline Transforms</span>
+                        <span class="pill-val" style="font-weight: 700; color: var(--text-primary);">LabelEncoder + StandardScaler</span>
+                    </div>
+                    <div class="summary-stat-pill" style="background: var(--card-soft); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12.5px;">
+                        <span class="pill-label" style="color: var(--text-muted); display: block; font-size: 11px; text-transform: uppercase;">Continuous Values Custom vs Median</span>
+                        <span class="pill-val" style="font-weight: 700; color: var(--text-primary);">{{ manual.get('changed', 0) }} modified</span>
+                    </div>
+                </div>
+
+                <div class="feature-meaning-notice" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                    <strong>Verified Dataset Schema:</strong> Features are designated as <code>cont1</code>–<code>cont14</code> (continuous metrics) and <code>cat1</code>–<code>cat116</code> (categorical attributes). In strict accordance with ML integrity, feature names are anonymized in the authoritative Allstate claims schema and are tracked directly without fabricating artificial attributes.
+                </div>
+
+                {% if manual['warnings'] %}
+                <div class="warning-box" style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 16px; color: #92400E; font-size: 13.5px;">
+                    <p style="font-weight: 700; margin-bottom: 6px;">Observed Range Advisory:</p>
+                    <ul style="margin-left: 20px;">
+                        {% for item in manual['warnings'] %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                    <p style="margin: 6px 0 0; font-size: 12.5px; opacity: 0.9;">The prediction was computed successfully; inputs outside historical dataset ranges represent out-of-distribution extrapolation.</p>
+                </div>
+                {% endif %}
+
+                <!-- Continuous Features Verification Table -->
+                <div class="table-responsive" style="overflow-x: auto; margin-bottom: 18px;">
+                    <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: var(--card-soft); text-align: left; border-bottom: 2px solid var(--border-color);">
+                                <th style="padding: 10px 14px; font-weight: 700; color: var(--text-primary);">Feature</th>
+                                <th style="padding: 10px 14px; font-weight: 700; color: var(--text-primary);">Submitted Value</th>
+                                <th style="padding: 10px 14px; font-weight: 700; color: var(--text-primary);">Historical Median</th>
+                                <th style="padding: 10px 14px; font-weight: 700; color: var(--text-primary);">Historical Range</th>
+                                <th style="padding: 10px 14px; font-weight: 700; color: var(--text-primary);">Range Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in manual['continuous_summary'] %}
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 8px 14px;"><strong>{{ item.name }}</strong></td>
+                                <td style="padding: 8px 14px; font-weight: 700; color: var(--text-primary);">{{ '%.5g'|format(item.value) }}</td>
+                                <td style="padding: 8px 14px; color: var(--text-muted);">{{ '%.5g'|format(item.median) }}</td>
+                                <td style="padding: 8px 14px; font-size: 12px; color: var(--text-muted);">[{{ '%.4g'|format(item.min) }}, {{ '%.4g'|format(item.max) }}]</td>
+                                <td style="padding: 8px 14px;">
+                                    {% if item.in_range %}
+                                    <span style="background: #EAF7F2; color: #07845F; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;">Within Range</span>
+                                    {% else %}
+                                    <span style="background: #FEF3C7; color: #B45309; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;">Out of Range</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Categorical Features Overview (Expandable) -->
+                <details class="categorical-details-accordion" style="background: var(--card-soft); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 16px;">
+                    <summary style="font-weight: 700; color: var(--text-primary); cursor: pointer; font-size: 13.5px;">
+                        View All 116 Submitted Categorical Values (cat1–cat116)
+                    </summary>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 14px; max-height: 280px; overflow-y: auto; padding: 8px 4px;">
+                        {% for cat in manual['categorical_summary'] %}
+                        <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font-size: 12px; display: flex; justify-content: space-between;">
+                            <span style="font-weight: 600; color: var(--text-muted);">{{ cat.name }}:</span>
+                            <span style="font-weight: 700; color: var(--accent-primary);">{{ cat.value }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if result %}
+        <!-- LEGACY TEST RECORD RESULT (Retained for automated verification test compatibility) -->
+        <section class="results-section" id="test-row-results" style="margin-bottom: 30px;">
+            <div class="card" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm);">
+                <span style="background: var(--accent-light-bg); color: var(--accent-primary); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">TEST BENCHMARK RESULT</span>
+                <h3 style="margin-top: 8px; font-size: 20px; font-weight: 800; color: var(--text-primary);">Test-Row Prediction Result (Record #{{ result['row_index'] }})</h3>
+                <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">Verified against held-out record #{{ result['row_index'] }} in <code>Dataset/06_split_X_test.csv</code></p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                    <div style="background: var(--card-soft); padding: 14px; border-radius: var(--radius-sm);">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Predicted Loss</span>
+                        <span style="display: block; font-size: 24px; font-weight: 800; color: var(--accent-primary); margin-top: 4px;">{{ '{:,.2f}'.format(result['predicted_loss']) }}</span>
+                    </div>
+                    <div style="background: var(--card-soft); padding: 14px; border-radius: var(--radius-sm);">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Actual Held-Out Loss</span>
+                        <span style="display: block; font-size: 24px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ '{:,.2f}'.format(result['actual_loss']) }}</span>
+                    </div>
+                    <div style="background: var(--card-soft); padding: 14px; border-radius: var(--radius-sm);">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Absolute Error</span>
+                        <span style="display: block; font-size: 24px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ '{:,.2f}'.format((result['predicted_loss'] - result['actual_loss'])|abs) }}</span>
+                    </div>
+                </div>
+                <div style="margin-top: 18px;">
+                    <a href="{{ url_for('prediction') }}" class="btn btn-secondary">Predict Again</a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- =========================================================
+             SINGLE PRIMARY PREDICTION WORKFLOW
+             ========================================================= -->
+        <section class="prediction-workflow-container" style="margin-bottom: 40px;">
+            <div style="display: grid; grid-template-columns: 1fr 1.35fr; gap: 28px; align-items: start;" class="prediction-hero-grid">
+
+                <!-- LEFT COLUMN: SYSTEM ARCHITECTURE & EXPLANATION -->
+                <div class="workflow-info-col">
+                    <div style="display: inline-flex; align-items: center; gap: 8px; background: var(--accent-light-bg); color: var(--accent-primary); padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-bottom: 14px;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary);"></span>
+                        <span>Machine Learning Powered</span>
+                    </div>
+
+                    <h1 style="font-size: 32px; font-weight: 800; color: var(--text-primary); line-height: 1.25; margin-bottom: 12px;">
+                        Understand Your Insurance Claim Loss
+                    </h1>
+
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px;">
+                        Use our machine learning model to estimate insurance claim loss from available claim-related information. Enter the supported details to generate an estimate based on historical data.
+                    </p>
+
+                    <p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
+                        <strong>Insurance Claim Loss Prediction</strong> engine powered by the production evaluated regression model (<code>{{ best_name }}</code>). The pipeline standardizes continuous numerical loss parameters and encodes categorical claim attributes with production-fitted transformers before executing model inference.
+                    </p>
+
+                    <!-- FOUR VALUE CARDS -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px;">
+                        <div class="card" style="background: #FFFFFF; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                            <div style="font-size: 20px; color: var(--accent-primary); margin-bottom: 6px;">⚡</div>
+                            <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-bottom: 4px;">Instant Prediction</strong>
+                            <span style="font-size: 12.5px; color: var(--text-muted); display: block; line-height: 1.4;">Generate an estimate after submitting valid inputs.</span>
+                        </div>
+
+                        <div class="card" style="background: #FFFFFF; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                            <div style="font-size: 20px; color: var(--accent-primary); margin-bottom: 6px;">🛡️</div>
+                            <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-bottom: 4px;">Data Validation</strong>
+                            <span style="font-size: 12.5px; color: var(--text-muted); display: block; line-height: 1.4;">Validate the information before prediction.</span>
+                        </div>
+
+                        <div class="card" style="background: #FFFFFF; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                            <div style="font-size: 20px; color: var(--accent-primary); margin-bottom: 6px;">📊</div>
+                            <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-bottom: 4px;">Transparent Results</strong>
+                            <span style="font-size: 12.5px; color: var(--text-muted); display: block; line-height: 1.4;">Display the predicted value and model information.</span>
+                        </div>
+
+                        <div class="card" style="background: #FFFFFF; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                            <div style="font-size: 20px; color: var(--accent-primary); margin-bottom: 6px;">🔬</div>
+                            <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-bottom: 4px;">Research-Backed</strong>
+                            <span style="font-size: 12.5px; color: var(--text-muted); display: block; line-height: 1.4;">Use the actual trained ClaimWise regression model.</span>
+                        </div>
+                    </div>
+
+                    <!-- TRANSPARENCY NOTICE -->
+                    <div style="background: var(--card-soft); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; font-size: 13px; color: var(--text-secondary); line-height: 1.55;">
+                        <strong style="color: var(--text-primary); display: block; margin-bottom: 4px;">Option A — Customer-Facing Schema Transparency</strong>
+                        <p style="margin: 0;">
+                            <strong>Schema Integrity:</strong> The ClaimWise training dataset consists of 130 anonymized technical features (<code>cont1</code>–<code>cont14</code> and <code>cat1</code>–<code>cat116</code>). In strict adherence to machine learning integrity, ClaimWise does NOT fabricate unverified demographic labels (such as age, gender, or BMI) without documented mappings. The form maps verified parameters directly to the trained model.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: THE EXACTLY ONE PRIMARY PREDICTION FORM -->
+                <div class="workflow-form-col">
+                    <div class="card" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 30px; box-shadow: var(--shadow-md);">
+                        <div style="margin-bottom: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+                            <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">Estimate Claim Loss</h2>
+                            <p style="font-size: 13.5px; color: var(--text-secondary); margin: 0;">
+                                Enter the supported feature values to generate a prediction.
+                            </p>
+                        </div>
+
+                        <!-- THE SINGLE FORM -->
+                        <form id="prediction-form" method="POST" action="{{ url_for('prediction') }}">
+                            <input type="hidden" name="mode" value="manual">
+
+                            <!-- SECTION 1: CONTINUOUS FEATURES (cont1 through cont14) -->
+                            <div style="margin-bottom: 24px;">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; border-bottom: 2px solid var(--accent-light-bg); padding-bottom: 6px;">
+                                    <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                                        1. Continuous Numeric Predictors (cont1–cont14)
+                                    </h3>
+                                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">14 required fields</span>
+                                </div>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px;">
+                                    Input numerical loss parameters. Defaults are set to the historical dataset medians.
+                                </p>
+
+                                {% if form_groups and form_groups[0] and form_groups[0].fields %}
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;" class="continuous-inputs-grid">
+                                    {% for f in form_groups[0].fields %}
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label for="field-{{ f.name }}" style="display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+                                            <span><code>{{ f.name }}</code></span>
+                                            <span style="font-size: 11px; font-weight: 500; color: var(--text-muted);">[{{ '%.3g'|format(f.min) }} – {{ '%.3g'|format(f.max) }}]</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            class="form-control"
+                                            id="field-{{ f.name }}"
+                                            name="{{ f.name }}"
+                                            required
+                                            value="{% if submitted_values and f.name in submitted_values %}{{ submitted_values[f.name] }}{% else %}{{ f.default }}{% endif %}"
+                                            style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 13.5px; font-family: inherit;"
+                                        >
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- SECTION 2: KEY INFLUENTIAL CATEGORICAL ATTRIBUTES -->
+                            <div style="margin-bottom: 24px;">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; border-bottom: 2px solid var(--accent-light-bg); padding-bottom: 6px;">
+                                    <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px;">
+                                        2. Primary Categorical Factors
+                                    </h3>
+                                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">High-importance factors</span>
+                                </div>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px;">
+                                    Top categorical predictors identified through random forest and gradient boosting feature importance.
+                                </p>
+
+                                {% if form_groups and form_groups|length > 1 %}
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;" class="primary-cat-grid">
+                                    {% set primary_cats = ['cat80', 'cat79', 'cat1', 'cat2', 'cat50', 'cat12'] %}
+                                    {% for group in form_groups[1:] %}
+                                        {% for f in group.fields %}
+                                            {% if f.name in primary_cats %}
+                                            <div class="form-group" style="margin-bottom: 0;">
+                                                <label for="field-{{ f.name }}" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+                                                    <code>{{ f.name }}</code>
+                                                    <span style="font-size: 11px; font-weight: 500; color: var(--text-muted);">({{ f.cardinality }} categories)</span>
+                                                </label>
+                                                <select
+                                                    class="form-control"
+                                                    id="field-{{ f.name }}"
+                                                    name="{{ f.name }}"
+                                                    style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; background: #FFFFFF;"
+                                                >
+                                                    {% for opt in f.options %}
+                                                    <option value="{{ opt }}" {% if submitted_values and submitted_values[f.name] == opt %}selected{% elif not submitted_values and opt == f.default %}selected{% endif %}>
+                                                        {{ opt }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- SECTION 3: TECHNICAL DETAILS & REMAINING CATEGORICAL FACTORS -->
+                            <div style="margin-bottom: 26px;">
+                                <details class="technical-details-drawer" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--card-soft); padding: 14px 18px;">
+                                    <summary style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                                        <span>3. Advanced Technical Predictors &amp; Remaining Categorical Factors (cat1–cat116)</span>
+                                        <span style="font-size: 11.5px; color: var(--accent-primary); font-weight: 600;">Expand Drawer ↓</span>
+                                    </summary>
+                                    <div style="margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+                                        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                                            <strong>Automatic Training Defaults:</strong> The remaining categorical factors are automatically initialized with their training mode categories (the most frequent value in the historical dataset). You can inspect or customize any specific categorical factor below.
+                                        </p>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 360px; overflow-y: auto; padding-right: 6px;">
+                                            {% for group in form_groups[1:] %}
+                                                {% for f in group.fields %}
+                                                    {% if f.name not in ['cat80', 'cat79', 'cat1', 'cat2', 'cat50', 'cat12'] %}
+                                                    <div style="font-size: 12px;">
+                                                        <label for="field-{{ f.name }}" style="display: block; font-weight: 600; color: var(--text-muted); margin-bottom: 2px;">
+                                                            {{ f.name }}
+                                                        </label>
+                                                        <select
+                                                            name="{{ f.name }}"
+                                                            id="field-{{ f.name }}"
+                                                            style="width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 4px; background: #FFFFFF;"
+                                                        >
+                                                            {% for opt in f.options %}
+                                                            <option value="{{ opt }}" {% if submitted_values and submitted_values[f.name] == opt %}selected{% elif not submitted_values and opt == f.default %}selected{% endif %}>
+                                                                {{ opt }}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <!-- SUBMIT AND RESET BUTTONS -->
+                            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                <button type="submit" class="btn btn-primary" id="btn-predict-loss" style="padding: 12px 28px; font-size: 15px; font-weight: 700; border-radius: var(--radius-sm); letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 8px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/></svg>
+                                    PREDICT CLAIM LOSS
+                                </button>
+                                <a href="{{ url_for('prediction') }}" class="btn btn-secondary" style="padding: 12px 20px; font-size: 14px; font-weight: 600; border-radius: var(--radius-sm);">
+                                    RESET FORM
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
 </div>
+
+<script>
+function scrollToForm(e) {
+    if (e) e.preventDefault();
+    const form = document.getElementById('prediction-form');
+    if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+</script>
+
+<style>
+@media (max-width: 900px) {
+    .prediction-hero-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .continuous-inputs-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .primary-cat-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+</style>
 
 {% endblock %}

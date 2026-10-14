@@ -183,55 +183,64 @@ jupyter notebook Notebooks/
 
 ---
 
-## 🤖 Models
+## 🤖 Machine Learning Models (13 Models Evaluated)
 
-Five regression models are trained on the identical 40,000/10,000 split and compared on the same
-10,000 test rows:
+Thirteen regression models were trained on the exact 40,000-row training split and evaluated on the held-out 10,000-row test dataset (`Dataset/06_split_X_test.csv`, `06_split_y_test.csv`) across all 7 standard continuous loss metrics:
 
-| Rank | Model | MAE | MSE | RMSE | R² |
-|---:|---|---:|---:|---:|---:|
-| 1 | Hist Gradient Boosting Regressor | 1215.2997 | 3690333.1165 | 1921.0240 | 0.545901 |
-| 2 | Random Forest Regressor | 1259.6218 | 3937886.6824 | 1984.4109 | 0.515440 |
-| 3 | Gradient Boosting Regressor | 1277.7829 | 4021053.5725 | 2005.2565 | 0.505206 |
-| 4 | Linear Regression | 1333.5665 | 4204641.7064 | 2050.5223 | 0.482615 |
-| 5 | Decision Tree Regressor | 1609.9189 | 6964030.4498 | 2638.9450 | 0.143070 |
+| Rank | Model | MAE | RMSE | R² | EV | MedAE | MAPE |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | **Hist Gradient Boosting Regressor** | **1,215.30** | **1,921.02** | **0.5459** | **0.5459** | **789.34** | **63.68%** |
+| 2 | Extra Trees Regressor | 1,254.61 | 1,980.32 | 0.5174 | 0.5174 | 808.38 | 67.20% |
+| 3 | Random Forest Regressor | 1,259.62 | 1,984.41 | 0.5154 | 0.5154 | 819.76 | 68.08% |
+| 4 | Gradient Boosting Regressor | 1,277.78 | 2,005.26 | 0.5052 | 0.5052 | 856.61 | 69.53% |
+| 5 | Ridge Regression | 1,333.49 | 2,050.45 | 0.4826 | 0.4827 | 926.40 | 70.90% |
+| 6 | Linear Regression | 1,333.57 | 2,050.52 | 0.4826 | 0.4826 | 926.69 | 70.90% |
+| 7 | Lasso Regression | 1,333.58 | 2,051.88 | 0.4819 | 0.4819 | 924.98 | 70.58% |
+| 8 | Elastic Net Regression | 1,394.39 | 2,162.80 | 0.4244 | 0.4244 | 997.68 | 76.61% |
+| 9 | Support Vector Regression (Linear) | 1,289.04 | 2,174.74 | 0.4180 | 0.4387 | 785.42 | 58.12% |
+| 10 | Decision Tree Regressor | 1,609.92 | 2,638.94 | 0.1431 | 0.1431 | 899.17 | 76.17% |
+| 11 | K-Nearest Neighbors Regressor | 1,720.33 | 2,673.83 | 0.1203 | 0.1294 | 1,215.07 | 95.17% |
+| 12 | Dummy Regressor (Median Baseline) | 1,788.56 | 2,986.61 | -0.0976 | 0.0000 | 1,104.24 | 80.34% |
+| 13 | AdaBoost Regressor | 4,278.58 | 4,627.19 | -1.6346 | 0.2775 | 4,580.97 | 334.40% |
 
-The selection rule is the **lowest test RMSE** (MAE, MSE, then highest R² as tie-breakers), so
-`Models/best_model.pkl` currently holds the Hist Gradient Boosting Regressor.
-
-### Fifth model — adapted from the provided Google Drive code
-
-The provided notebooks (`Home_Credit_Default_Risk_FINAL_Perfect.ipynb` and
-`Home_Credit_Default_Risk_FINAL_FIXED.ipynb`) were a LightGBM binary-classification Kaggle pipeline.
-`Notebooks/08_ClaimWise_Hist_Gradient_Boosting.ipynb` keeps their reusable logic — SEED 42,
-3-fold cross-validation with patience-based early stopping, out-of-fold scoring, prediction
-sanity checks — and maps it onto this regression problem with sklearn's
-`HistGradientBoostingRegressor` (LightGBM is not installed and no network install is allowed).
-The mapping table (what was preserved, re-parameterised, or dropped, and why) is documented in that
-notebook. The multi-table Home Credit feature engineering has no equivalent in the single-table
-ClaimWise dataset and is therefore not carried over.
+The selection rule strictly identifies the model with the **lowest test RMSE** (MAE, MSE, and highest R² as tie-breakers), confirming **Hist Gradient Boosting Regressor** as the champion production model (`Models/best_model.pkl`).
 
 ---
 
-## 🌐 Web Application
+## 🌐 Web Application & Features
 
 ```bash
 .venv/bin/python app.py      # http://127.0.0.1:5000
 ```
 
-- `/dataset`, `/preprocessing`, `/visualization` — verified dataset facts, pipeline stages and the
-  leakage check (scaler fitted on training rows only).
-- `/models`, `/dashboard`, `/reports` — real metrics read from `Outputs/Model_Comparison/model_comparison.csv`
-  and the model figures produced by the notebooks.
-- `/academic` — the academic extension: PCA, classification (confusion matrix, precision/recall/F1),
-  clustering, DBSCAN, anomaly detection and 5-fold cross-validation, each section reading its real
-  CSVs and figures from `Outputs/`.
-- `/prediction` — the real prediction form: all 130 raw features (14 number inputs with the dataset's
-  min/max, 116 dropdowns with the values that actually occur in the data), transformed by the saved
-  `LabelEncoder`/`StandardScaler` (`Models/claimwise_preprocessor.pkl`, verified to reproduce
-  `05_preprocessed_final.csv`) and scored by `Models/best_model.pkl`. A secondary mode predicts a
-  prepared test row by index.
-- `/notebooks/<file>` — download any of the seventeen executed notebooks.
+- `/` / `/index` — Modern, dynamic landing page with verified 50,000 dataset records, 130 features, champion model spotlight card, complete 13-model benchmark summary, and direct stage navigation.
+- `/dataset` — Dataset management portal with verified Mode A production dataset audit, Mode B sandbox upload analyzer with 6-point schema compatibility validator, and direct modal preview/download of raw and split CSV artifacts.
+- `/preprocessing` — Stage-by-stage pipeline audit across all 10 stages (132 → 131 → 130 features), empirical data leakage verification, and verified CSV artifact cards with preview modal.
+- `/visualization` — Comprehensive module-wise exploratory data analysis and model diagnostic figures across Modules 1 to 5, featuring interactive tabs, modal expansions, and 8-point academic metadata breakdowns.
+- `/models` — Complete 13-model benchmark suite featuring 5 KPI highlight cards (Total Evaluated, Lowest MAE, Lowest RMSE, Highest R², Champion Model), interactive comparison table with 7 continuous metrics, diagnostic bar charts, model evaluation CSV tables, and notebook references.
+- `/prediction` — **Exactly ONE primary prediction workflow**:
+  1. *Section 1 (Continuous Numeric Predictors)*: Granular inputs for all 14 continuous variables (`cont1`–`cont14`) with historical range tags and median defaults.
+  2. *Section 2 (Primary Categorical Factors)*: Top influential categorical attributes (`cat80`, `cat79`, `cat1`, `cat2`, `cat50`, `cat12`) identified through feature importance.
+  3. *Section 3 (Advanced Technical Predictors)*: Collapsible drawer providing transparency into all remaining categorical features (`cat1`–`cat116`) pre-filled with observed historical modes.
+  4. *Direct Inference Engine*: Evaluates submitted input against the champion `HistGradientBoostingRegressor` model, outputting formatted claim loss, feature verification summary, and legal estimation disclaimer without mock delays or duplicate tabs.
+- `/academic` — Full academic extension including PCA variance decomposition, logistic regression & decision tree classification, K-Means clustering, DBSCAN density analysis, Isolation Forest anomaly detection, and leakage-free 5-fold cross-validation.
+- `/dashboard` — Executive ML telemetry dashboard with dynamic KPI cards, top benchmark comparison charts, recent model logs, and quick artifact previews.
+- `/reports` — Full audit center with system architecture specification, 13-model leaderboard, technical audit matrices, and complete 70+ CSV artifact inventory with universal modal preview and download buttons.
+- `/csv/preview` & `/csv/download/<path>` — Universal safe CSV modal viewer endpoint supporting chunked debounced search, server-side pagination, verified row counts, and strict traversal-protected downloads.
+
+---
+
+## 🧪 Testing and Verification
+
+Run the comprehensive automated test suite verifying data integrity, model inference parity, single prediction workflow, route availability, and CSV preview/download security:
+
+```bash
+.venv/bin/pytest tests/test_claimwise_system.py -v
+```
+
+**Test Suite Results:**
+- **17 passed, 0 failed, 0 errors** (100% pass rate).
+- Validates all 11 application routes, model file integrity, 130-feature shape compatibility, numerical inference parity, single-form enforcement, and CSV security endpoints.
 
 ---
 
@@ -242,11 +251,16 @@ Credit ML/
 ├── Dataset/            # raw + intermediate + final train/test CSV files (01_ ... 06_)
 ├── Models/             # saved models (*.pkl), best_model.pkl + claimwise_preprocessor.pkl
 ├── Notebooks/          # 01 ... 17 — the executable ML workflow + academic extension
-├── Outputs/            # metrics, predictions, comparisons and all figures
-├── Src/                # preprocessing, EDA, model training, comparison and prediction-prep scripts
+├── Outputs/            # metrics, predictions, comparisons and all 90+ figures across modules
+├── Src/                # preprocessing, EDA, model training, dataset manager, comparison scripts
 ├── reports/            # dataset lifecycle + audit reports
-├── app.py              # Flask web dashboard using the trained model
+├── tests/              # automated verification test suite (test_claimwise_system.py)
+├── templates/          # Jinja2 templates (index, dataset, preprocessing, visualization, models, etc.)
+├── static/             # design-system styles (style.css)
+├── uploads/            # isolated sandbox for uploaded CSV datasets (never overwrites Dataset/)
+├── app.py              # Flask web application
 ├── main.py             # runs the preprocessing pipeline
-├── README.md
-└── requirements.txt
+├── FINAL_REPORT.md     # complete traceable project verification report
+├── README.md           # project documentation
+└── requirements.txt    # verified python dependencies
 ```

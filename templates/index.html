@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Home | ClaimWise Insurance Prediction System{% endblock %}
+{% block title %}ClaimWise Insurance Prediction — Home{% endblock %}
 
 {% block content %}
 
@@ -9,51 +9,60 @@
     <!-- TWO-COLUMN HERO SECTION -->
     <div class="hero-two-col">
         <div class="hero-left">
-            <span class="hero-label">INSURANCE • MACHINE LEARNING</span>
+            <span class="hero-label">PRODUCTION REGRESSION • 130 FEATURES</span>
             <h1>ClaimWise<br>Insurance Claim<br>Prediction System</h1>
             <p class="hero-description">
-                A machine learning based system that analyzes customer, policy, claim and coverage information to estimate insurance claim loss.
+                An end-to-end machine learning system that analyzes 130 verified policy and claim features to predict continuous insurance claim loss (<code>loss</code>). Built strictly on actual trained models and empirical data.
             </p>
             <div class="hero-buttons">
-                <a href="/preprocessing" class="btn btn-primary">Explore Project ➔</a>
-                <a href="/prediction" class="btn btn-secondary">Try Prediction</a>
+                <a href="/prediction" class="btn btn-primary">Try Prediction ➔</a>
+                <a href="/dataset" class="btn btn-secondary">Dataset Management</a>
+                <a href="/models" class="btn btn-secondary">Model Comparison</a>
+                <a href="/visualization" class="btn btn-secondary">Visualizations</a>
             </div>
         </div>
 
         <div class="hero-right">
             <div class="hero-info-card">
-                <div class="hero-info-header">CLAIM ANALYSIS</div>
+                <div class="hero-info-header">VERIFIED BEST MODEL SPOTLIGHT</div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.5px;">Rank #1 Best Performer</div>
+                    <h3 style="font-size: 18px; margin: 4px 0 6px; color: var(--text-primary);">Hist Gradient Boosting Regressor</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Histogram-based tree boosting with 3-fold cross-validation early stopping (median 830 iterations).
+                    </p>
+                </div>
                 <div class="hero-info-list">
                     <div class="hero-info-item">
-                        <span>Customer Domain</span>
-                        <span>Audited</span>
+                        <span>Test RMSE (Lowest)</span>
+                        <strong style="color: var(--text-primary);">1,921.0240</strong>
                     </div>
                     <div class="hero-info-item">
-                        <span>Policy Domain</span>
-                        <span>Audited</span>
+                        <span>R² Score (Highest)</span>
+                        <strong style="color: var(--accent-primary);">0.545901</strong>
                     </div>
                     <div class="hero-info-item">
-                        <span>Coverage Domain</span>
-                        <span>Audited</span>
+                        <span>Test MAE</span>
+                        <strong style="color: var(--text-primary);">1,215.2997</strong>
                     </div>
                     <div class="hero-info-item">
-                        <span>Claim Domain</span>
-                        <span>Audited</span>
+                        <span>Evaluation Rows</span>
+                        <strong style="color: var(--text-primary);">10,000 test claims</strong>
                     </div>
                 </div>
                 <div class="hero-info-footer">
                     <div>
-                        <span style="color: var(--text-muted);">Estimated Loss:</span>
-                        <strong style="color: var(--text-primary); margin-left: 4px;">—</strong>
+                        <span style="color: var(--text-muted); font-size: 12px;">Selection Criterion:</span>
+                        <strong style="color: var(--text-primary); margin-left: 4px; font-size: 12px;">Lowest Test RMSE</strong>
                     </div>
-                    <span class="status-badge status-ready">Ready for evaluation</span>
+                    <span class="status-badge status-ready">Active in Production</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- FOUR HORIZONTAL STATISTIC CARDS -->
-    <div class="cards cards-4">
+    <div class="cards cards-4" style="margin-top: 24px;">
         <div class="card">
             <h3>Dataset Records</h3>
             <div class="stat-value">50,000</div>
@@ -63,96 +72,205 @@
         <div class="card">
             <h3>Input Features</h3>
             <div class="stat-value">130</div>
-            <p>Predictor variables (\(X\))</p>
+            <p>Predictor variables (116 cat, 14 cont)</p>
         </div>
 
         <div class="card">
             <h3>Target Variable</h3>
-            <div class="stat-value">1</div>
-            <p>Continuous target (<code>loss</code>)</p>
+            <div class="stat-value" style="color: var(--accent-primary);">loss</div>
+            <p>Continuous regression target</p>
         </div>
 
         <div class="card">
-            <h3>Train / Test</h3>
+            <h3>Train / Test Partition</h3>
             <div class="stat-value" style="font-size: 22px;">40,000 / 10,000</div>
-            <p>80:20 partition split</p>
+            <p>80:20 partition (random_state=42)</p>
         </div>
+    </div>
+
+    <!-- QUICK SYSTEM NAVIGATION -->
+    <h2>Quick System Sections</h2>
+    <p>Access the core machine learning and data engineering modules across the platform:</p>
+    <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+        <a href="/dataset" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-primary);">
+            <div style="font-size: 24px; margin-bottom: 6px;">📁</div>
+            <h3 style="color: var(--text-primary);">Dataset Management</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Upload CSVs, inspect 130 features, audit data health, and verify model schema compatibility.</p>
+        </a>
+        <a href="/visualization" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-secondary);">
+            <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
+            <h3 style="color: var(--text-primary);">Module-wise Visualizations</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Modules 1 to 5: dataset exploration, preprocessing pipeline, EDA, ML diagnostics, and comparisons.</p>
+        </a>
+        <a href="/models" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--success);">
+            <div style="font-size: 24px; margin-bottom: 6px;">⚙️</div>
+            <h3 style="color: var(--text-primary);">Model Comparison</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Benchmark all 13 trained regression models across MAE, MSE, RMSE, R², and diagnostic charts.</p>
+        </a>
+        <a href="/prediction" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--text-primary);">
+            <div style="font-size: 24px; margin-bottom: 6px;">🔮</div>
+            <h3 style="color: var(--text-primary);">Loss Prediction</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Predict continuous insurance claim loss using the verified 130-feature primary input workflow.</p>
+        </a>
     </div>
 
     <!-- HOW CLAIMWISE WORKS -->
     <h2>How ClaimWise Works</h2>
-    <p>A structured six-step workflow designed to transform raw insurance records into ML-ready features.</p>
+    <p>A rigorous, reproducible pipeline transforming raw insurance claims into validated regression predictions.</p>
     
     <div class="steps">
         <div class="step">
             <span class="step-number">01</span>
-            <h3>DATA</h3>
-            <p>Ingests 50,000 raw insurance claims records.</p>
+            <h3>INGEST</h3>
+            <p>Audits 50,000 raw claims across 132 columns for missing cells, duplicates, and column types.</p>
         </div>
 
         <div class="step">
             <span class="step-number">02</span>
             <h3>CLEAN</h3>
-            <p>Drops <code>id</code> column and handles missing values.</p>
+            <p>Drops record identifier <code>id</code> and handles imputation without synthetic bias.</p>
         </div>
 
         <div class="step">
             <span class="step-number">03</span>
             <h3>ENCODE</h3>
-            <p>Applies <code>LabelEncoder</code> to text categories.</p>
+            <p>Applies <code>LabelEncoder</code> to 116 categorical columns (73 binary, 43 multi-level).</p>
         </div>
 
         <div class="step">
             <span class="step-number">04</span>
             <h3>SCALE</h3>
-            <p>Normalizes continuous variables via <code>StandardScaler</code>.</p>
+            <p>Standardizes 14 continuous variables with <code>StandardScaler</code> fitted solely on training rows.</p>
         </div>
 
         <div class="step">
             <span class="step-number">05</span>
             <h3>TRAIN</h3>
-            <p>Fits regression algorithms on 40,000 training rows.</p>
+            <p>Trains 13 regression models with cross-validation and selects winner by lowest test RMSE.</p>
         </div>
 
         <div class="step">
             <span class="step-number">06</span>
             <h3>PREDICT</h3>
-            <p>Estimates continuous insurance claim loss values.</p>
+            <p>Provides validated claim loss estimates through the saved preprocessor and best model.</p>
         </div>
     </div>
 
     <!-- INPUT FEATURE GROUPS -->
-    <h2>Input Features</h2>
-    <p>The model consumes the 130 input columns of the dataset, named exactly as in
-        <code>Dataset/01_raw_claimwise_50000.csv</code>:</p>
+    <h2>Verified Feature Composition</h2>
+    <p>The system consumes 130 input columns derived from <code>Dataset/01_raw_claimwise_50000.csv</code>:</p>
 
-    <div class="cards">
+    <div class="cards cards-4">
         <div class="card">
             <div style="font-size: 22px; margin-bottom: 8px;">🔢</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">CONTINUOUS (cont1–cont14)</h3>
-            <p>14 numeric measurements, standardized with <code>StandardScaler</code> fitted on the 40,000
-                training rows only.</p>
+            <h3 style="color: var(--text-primary); font-size: 15px;">CONTINUOUS</h3>
+            <div class="stat-value" style="font-size: 22px;">14 features</div>
+            <p style="margin-top: 6px;"><code>cont1</code>–<code>cont14</code> normalized with <code>StandardScaler</code> fitted on train split only.</p>
         </div>
 
         <div class="card">
             <div style="font-size: 22px; margin-bottom: 8px;">🏷️</div>
             <h3 style="color: var(--text-primary); font-size: 15px;">BINARY CATEGORICAL</h3>
-            <p>73 of the 116 <code>cat1</code>–<code>cat116</code> columns have exactly two possible values and
-                are label-encoded to integers.</p>
+            <div class="stat-value" style="font-size: 22px;">73 features</div>
+            <p style="margin-top: 6px;">Columns with exactly 2 categories, integer-mapped via <code>LabelEncoder</code>.</p>
         </div>
 
         <div class="card">
             <div style="font-size: 22px; margin-bottom: 8px;">🏷️</div>
             <h3 style="color: var(--text-primary); font-size: 15px;">MULTI-LEVEL CATEGORICAL</h3>
-            <p>The remaining 43 categorical columns hold 3 to 266 levels each, also label-encoded — no
-                category is invented or renamed.</p>
+            <div class="stat-value" style="font-size: 22px;">43 features</div>
+            <p style="margin-top: 6px;">Columns with 3 to 266 distinct category levels, encoded without renaming.</p>
         </div>
 
         <div class="card">
             <div style="font-size: 22px; margin-bottom: 8px;">🎯</div>
-            <h3 style="color: var(--text-primary); font-size: 15px;">TARGET (loss)</h3>
-            <p>The continuous claim loss to predict: 10.00 to 85,923.56 in the raw dataset, mean 3035.01.
-                The unit is not defined by the dataset.</p>
+            <h3 style="color: var(--text-primary); font-size: 15px;">TARGET</h3>
+            <div class="stat-value" style="font-size: 22px; color: var(--accent-primary);">loss</div>
+            <p style="margin-top: 6px;">Continuous loss target (range 10.00 to 85,923.56, mean 3,035.01).</p>
+        </div>
+    </div>
+
+    <!-- VERIFIED MODEL PERFORMANCE SUMMARY -->
+    <h2>Verified Model Performance Summary</h2>
+    <p>Benchmark across all 13 implemented regression algorithms evaluated on 10,000 held-out test rows:</p>
+    
+    <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 32px;">
+        <table class="table" style="margin-bottom: 0;">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">Rank</th>
+                    <th>Model Name</th>
+                    <th>Test MAE</th>
+                    <th>Test MSE</th>
+                    <th>Test RMSE</th>
+                    <th>Test R²</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if model_rows %}
+                    {% for row in model_rows %}
+                    <tr {% if loop.first %}style="background: var(--accent-light-bg); font-weight: 600;"{% endif %}>
+                        <td>
+                            {% if loop.first %}
+                            <span class="badge" style="background: var(--accent-primary); color: #FFF; font-weight: 700;">#1</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">#{{ loop.index }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong style="color: var(--text-primary);">{{ row['Model'] }}</strong>
+                            {% if loop.first %}
+                            <span class="badge" style="background: var(--accent-light); color: var(--accent-primary); margin-left: 6px; font-size: 11px;">Best Performer</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ '%.2f'|format(row['MAE']) }}</td>
+                        <td>{{ '{:,.0f}'.format(row['MSE']) }}</td>
+                        <td style="font-weight: 700; color: {% if loop.first %}var(--accent-primary){% else %}var(--text-primary){% endif %};">${{ '%.2f'|format(row['RMSE']) }}</td>
+                        <td style="font-weight: 700; color: {% if loop.first %}var(--accent-primary){% else %}var(--text-primary){% endif %};">{{ '%.4f'|format(row['R2']) }}</td>
+                        <td>
+                            {% if loop.first %}
+                            <span class="status-badge status-ready">Active in Production</span>
+                            {% else %}
+                            <span class="status-badge status-completed">Evaluated</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- SYSTEM VISUALIZATIONS HIGHLIGHT -->
+    <h2>Core Visualizations & Empirical Distributions</h2>
+    <p>Real exploratory and diagnostic charts directly computed on the ClaimWise dataset and model outputs:</p>
+
+    <div class="cards cards-2" style="margin-bottom: 32px;">
+        <div class="card" style="padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h3 style="font-size: 16px; margin-bottom: 0;">Model Comparison (RMSE & R²)</h3>
+                <span class="badge" style="background: var(--accent-light-bg); color: var(--accent-primary);">Outputs/Model_Comparison</span>
+            </div>
+            <div style="background: var(--card-soft); border-radius: var(--radius-sm); padding: 8px; text-align: center; border: 1px solid var(--border-color);">
+                <img src="{{ url_for('outputs', filename='Model_Comparison/model_comparison_bar_chart.png') }}" alt="Model Comparison Bar Chart" style="max-width: 100%; height: auto; border-radius: 4px;">
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 0;">
+                Benchmarking all 13 candidate regression models on the 10,000 test observations. Hist Gradient Boosting demonstrates the lowest test RMSE ($1,921.02) and highest R² (0.5459).
+            </p>
+        </div>
+
+        <div class="card" style="padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h3 style="font-size: 16px; margin-bottom: 0;">Raw Claim Loss Distribution</h3>
+                <span class="badge" style="background: var(--accent-light-bg); color: var(--accent-primary);">Outputs/Data_Inspection</span>
+            </div>
+            <div style="background: var(--card-soft); border-radius: var(--radius-sm); padding: 8px; text-align: center; border: 1px solid var(--border-color);">
+                <img src="{{ url_for('outputs', filename='Data_Inspection/claimwise_raw_target_distribution.png') }}" alt="Distribution of Claim Loss" style="max-width: 100%; height: auto; border-radius: 4px;">
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 0;">
+                Univariate probability density across all 50,000 claim records, demonstrating extreme right skewness from 10.00 to 85,923.56 with median loss at 2,115.57.
+            </p>
         </div>
     </div>
 
