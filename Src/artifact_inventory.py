@@ -11,6 +11,7 @@ import csv
 import io
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -250,6 +251,39 @@ def _classify_csv_artifact(rel_str: str, filename: str, columns: list[str], row_
                 f"{parent} CV Folds",
                 f"Per-fold validation metrics and iteration counts for {parent}.",
             )
+
+    if "ExperimentSuite" in rel_str:
+        suite_desc = {
+            "validation_metrics.csv": (
+                "Validation Leaderboard",
+                "Validation-set evaluation metrics (MAE, MSE, RMSE, R²) for all tuned model configurations on the 7,500-row validation split.",
+            ),
+            "tuning_results.csv": (
+                "Hyperparameter Search Log",
+                "Full two-wave random-search log of every tried hyperparameter configuration with validation scores and fit times.",
+            ),
+            "final_test_metrics.csv": (
+                "Final Untouched Test Metrics",
+                "Single out-of-sample evaluation of the promoted champion model on the untouched 10,000-row test split.",
+            ),
+            "log1p_experiments.csv": (
+                "Log-Transform Experiments",
+                "log1p-target training experiments comparing MAE and R² trade-offs against original-scale training.",
+            ),
+        }
+        art_type, desc = suite_desc.get(
+            filename,
+            ("Experiment Suite Artifact", f"Experiment-suite artifact ({filename}) with measured training results."),
+        )
+        return ("Model Evaluation", "models", art_type, desc)
+
+    if "Final_Model_Evaluation" in rel_str:
+        return (
+            "Model Evaluation",
+            "models",
+            "Final Model Evaluation",
+            "Production champion diagnostics on the untouched test split (actual-vs-predicted, residuals, error distribution).",
+        )
 
     if "PCA" in rel_str:
         return (
@@ -498,6 +532,28 @@ def _classify_visualization_artifact(rel_str: str, filename: str) -> Tuple[str, 
                 "visualization",
                 f"Category frequency bar chart for categorical attribute {feat}.",
             )
+
+    if "Final_Model_Evaluation" in rel_str:
+        if "actual_vs_predicted" in filename:
+            return (
+                "Production Champion — Actual vs Predicted (untouched test)",
+                "Model Evaluation",
+                "models",
+                "Scatter plot of observed versus predicted claim loss for the promoted HistGradientBoosting champion on the untouched 10,000-row test split.",
+            )
+        if "residual" in filename:
+            return (
+                "Production Champion — Residual Diagnostics (untouched test)",
+                "Model Evaluation",
+                "models",
+                "Residual distribution and error diagnostics for the promoted champion model evaluated once on the held-out test split.",
+            )
+        return (
+            "Production Champion — Final Evaluation Artifact",
+            "Model Evaluation",
+            "models",
+            "Final untouched-test evaluation figure produced by the model experiment suite.",
+        )
 
     # Per-model diagnostics
     for model_folder, model_title in [
@@ -970,6 +1026,32 @@ def _classify_output_file(rel_to_outputs: Path, file_size: int) -> Tuple[str, st
         else:
             desc = f"Academic research module output: {filename}."
 
+    elif first_dir == "Final_Model_Evaluation":
+        topic_key = "model_evaluation"
+        if "actual_vs_predicted" in filename:
+            desc = "Actual versus predicted claim loss scatter for the production champion on the untouched test split."
+        elif "residual" in filename:
+            desc = "Residual diagnostics for the production champion evaluated once on the held-out test split."
+        else:
+            desc = f"Final untouched-test evaluation artifact: {filename}."
+
+    elif first_dir == "ExperimentSuite":
+        topic_key = "model_evaluation"
+        if "tuning_results" in filename:
+            desc = "Complete hyperparameter random-search log with validation scores for every tried configuration."
+        elif "validation_metrics" in filename:
+            desc = "Validation-split leaderboard metrics for all tuned model candidates."
+        elif "final_test_metrics" in filename:
+            desc = "Single untouched-test evaluation of the promoted production champion model."
+        elif "log1p" in filename:
+            desc = "log1p-target experiment results comparing MAE and R² trade-offs."
+        elif "data_audit" in filename:
+            desc = "Measured dataset audit: skewness, variance concentration, duplicate features, and split-shift diagnostics."
+        elif filename.endswith(".log"):
+            desc = f"Experiment-suite execution log: {filename}."
+        else:
+            desc = f"Experiment-suite artifact: {filename}."
+
     else:
         topic_key = "other_outputs"
         desc = f"ClaimWise project output file: {filename}."
@@ -1007,8 +1089,12 @@ def build_all_outputs_inventory() -> List[Dict[str, Any]]:
             project_rel_path = str(rel_to_project).replace("\\", "/")
 
             ext = file_path.suffix.lower()
-            file_size = file_path.stat().st_size
+            stat = file_path.stat()
+            file_size = stat.st_size
             size_formatted = _format_size(file_size)
+            modified_utc = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S UTC"
+            )
 
             is_image = ext in [".png", ".jpg", ".jpeg", ".svg", ".webp"]
             is_csv = ext == ".csv"
@@ -1026,6 +1112,7 @@ def build_all_outputs_inventory() -> List[Dict[str, Any]]:
                 "web_src": web_src,
                 "size_bytes": file_size,
                 "size_formatted": size_formatted,
+                "modified_utc": modified_utc,
                 "topic_key": topic_key,
                 "topic": topic_title,
                 "topic_order": TOPIC_CONFIG.get(topic_key, {}).get("order", 99),

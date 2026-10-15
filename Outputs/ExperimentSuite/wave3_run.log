@@ -1,0 +1,196 @@
+[04:50:27 UTC] === Wave-3 corrected-protocol experiment starting (seed 2026) ===
+[04:50:28 UTC] Loaded and verified 50000 rows x 130 features.
+[04:50:28 UTC] Fresh split (seed 2026): train 32500, validation 7500, holdout 10000
+[04:50:28 UTC]   train       loss mean   3035.84  median   2115.45  max   85923.56  skew 3.636
+[04:50:28 UTC]   validation  loss mean   3027.07  median   2115.39  max   49249.07  skew 2.954
+[04:50:28 UTC]   holdout     loss mean   3038.26  median   2115.90  max   79623.52  skew 4.820
+[04:50:30 UTC] Persisted new splits; old files archived under archive_pre_wave3/.
+[04:50:30 UTC] Wrote split membership audit: wave3_split_membership.csv (50000 rows).
+[04:50:30 UTC] --- Dummy Regressor (Median Baseline): 1 config(s) ---
+[04:50:30 UTC]   [default] val MAE 1798.36  RMSE 2966.96  R2 -0.1042  (0.0s)
+[04:50:30 UTC] --- Linear Regression: 1 config(s) ---
+[04:50:30 UTC]   [default] val MAE 1325.51  RMSE 2033.31  R2 0.4814  (0.1s)
+[04:50:30 UTC] --- Ridge Regression: 6 config(s) ---
+[04:50:30 UTC]   [alpha=0.1] val MAE 1325.48  RMSE 2033.25  R2 0.4814  (0.0s)
+[04:50:30 UTC]   [alpha=1.0] val MAE 1325.28  RMSE 2033.02  R2 0.4815  (0.0s)
+[04:50:30 UTC]   [alpha=10.0] val MAE 1324.66  RMSE 2033.00  R2 0.4815  (0.0s)
+[04:50:30 UTC]   [alpha=100.0] val MAE 1324.15  RMSE 2034.20  R2 0.4809  (0.0s)
+[04:50:30 UTC]   [alpha=500.0] val MAE 1329.36  RMSE 2042.38  R2 0.4767  (0.0s)
+[04:50:30 UTC]   [alpha=1000.0] val MAE 1334.32  RMSE 2050.07  R2 0.4728  (0.0s)
+[04:50:30 UTC] --- Lasso Regression: 5 config(s) ---
+[04:50:40 UTC]   [alpha=0.01] val MAE 1325.39  RMSE 2033.19  R2 0.4814  (9.7s)
+[04:50:41 UTC]   [alpha=0.1] val MAE 1324.79  RMSE 2032.71  R2 0.4817  (1.2s)
+[04:50:42 UTC]   [alpha=0.5] val MAE 1322.99  RMSE 2032.20  R2 0.4819  (1.1s)
+[04:50:43 UTC]   [alpha=1.0] val MAE 1322.99  RMSE 2033.07  R2 0.4815  (1.1s)
+[04:50:44 UTC]   [alpha=2.0] val MAE 1322.78  RMSE 2033.41  R2 0.4813  (0.4s)
+[04:50:44 UTC] --- Elastic Net Regression: 5 config(s) ---
+[04:50:44 UTC]   [alpha=0.1,l1_ratio=0.2] val MAE 1343.50  RMSE 2067.12  R2 0.4640  (0.5s)
+[04:50:44 UTC]   [alpha=0.1,l1_ratio=0.5] val MAE 1338.57  RMSE 2057.72  R2 0.4689  (0.4s)
+[04:50:45 UTC]   [alpha=0.5,l1_ratio=0.5] val MAE 1362.72  RMSE 2101.33  R2 0.4461  (0.2s)
+[04:50:45 UTC]   [alpha=1.0,l1_ratio=0.5] val MAE 1386.40  RMSE 2137.20  R2 0.4270  (0.1s)
+[04:50:45 UTC]   [alpha=1.0,l1_ratio=0.8] val MAE 1358.20  RMSE 2093.68  R2 0.4501  (0.1s)
+[04:50:45 UTC] --- Support Vector Regression (Linear): 4 config(s) ---
+[04:50:45 UTC]   [C=0.1,eps=0.0] val MAE 1356.25  RMSE 2321.11  R2 0.3242  (0.3s)
+[04:50:47 UTC]   [C=1.0,eps=0.0] val MAE 1284.38  RMSE 2161.58  R2 0.4139  (1.5s)
+[04:50:49 UTC]   [C=1.0,eps=100.0] val MAE 1284.47  RMSE 2158.08  R2 0.4158  (1.9s)
+/Users/padaltiruvinayak/Desktop/Credit ML/.venv/lib/python3.14/site-packages/sklearn/svm/_base.py:1295: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+[04:51:00 UTC]   [C=10.0,eps=100.0] val MAE 1258.83  RMSE 2106.87  R2 0.4432  (11.4s)
+[04:51:00 UTC] --- Decision Tree Regressor: 4 config(s) ---
+[04:51:01 UTC]   [max_depth=None,min_samples_leaf=1] val MAE 1796.05  RMSE 2851.70  R2 -0.0201  (1.3s)
+[04:51:02 UTC]   [max_depth=12,min_samples_leaf=1] val MAE 1432.54  RMSE 2366.86  R2 0.2973  (0.6s)
+[04:51:03 UTC]   [max_depth=16,min_samples_leaf=2] val MAE 1515.27  RMSE 2479.86  R2 0.2286  (0.8s)
+[04:51:04 UTC]   [max_depth=20,min_samples_leaf=4] val MAE 1552.10  RMSE 2477.07  R2 0.2303  (0.9s)
+[04:51:04 UTC] --- Random Forest Regressor: 5 config(s) ---
+[04:51:06 UTC]   [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] val MAE 1251.21  RMSE 1942.97  R2 0.5264  (2.5s)
+[04:51:09 UTC]   [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] val MAE 1246.05  RMSE 1949.51  R2 0.5232  (2.7s)
+[04:51:17 UTC]   [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] val MAE 1249.68  RMSE 1925.73  R2 0.5348  (8.7s)
+[04:51:41 UTC]   [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] val MAE 1260.47  RMSE 1938.52  R2 0.5286  (23.1s)
+[04:51:52 UTC]   [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] val MAE 1250.47  RMSE 1926.18  R2 0.5346  (11.4s)
+[04:51:52 UTC] --- Extra Trees Regressor: 5 config(s) ---
+[04:51:58 UTC]   [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] val MAE 1248.64  RMSE 1981.15  R2 0.5076  (6.4s)
+[04:52:05 UTC]   [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] val MAE 1239.83  RMSE 1973.29  R2 0.5115  (6.9s)
+[04:52:16 UTC]   [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] val MAE 1253.00  RMSE 1968.66  R2 0.5138  (10.3s)
+[04:52:41 UTC]   [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] val MAE 1277.98  RMSE 1986.29  R2 0.5051  (25.0s)
+[04:52:55 UTC]   [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] val MAE 1256.14  RMSE 1967.59  R2 0.5144  (14.4s)
+[04:52:55 UTC] --- Gradient Boosting Regressor: 6 config(s) ---
+[04:53:22 UTC]   [n_estimators=150,lr=0.1,max_depth=3,min_samples_leaf=1] val MAE 1226.90  RMSE 1886.21  R2 0.5537  (26.8s)
+[04:54:25 UTC]   [n_estimators=200,lr=0.05,max_depth=3,min_samples_leaf=3] val MAE 1242.45  RMSE 1906.52  R2 0.5440  (63.5s)
+[05:06:16 UTC] === Wave-3 corrected-protocol experiment starting (seed 2026) ===
+[05:06:16 UTC] Existing wave-3 split files found and verified — reusing them (no re-split).
+[05:06:16 UTC] --- Dummy Regressor (Median Baseline): 1/1 config(s) to run ---
+[05:06:16 UTC]   [default] val MAE 1798.36  RMSE 2966.96  R2 -0.1042  (0.0s)
+[05:06:16 UTC] --- Linear Regression: 1/1 config(s) to run ---
+[05:06:16 UTC]   [default] val MAE 1325.51  RMSE 2033.31  R2 0.4814  (0.1s)
+[05:06:16 UTC] --- Ridge Regression: 6/6 config(s) to run ---
+[05:06:16 UTC]   [alpha=0.1] val MAE 1325.48  RMSE 2033.25  R2 0.4814  (0.0s)
+[05:06:16 UTC]   [alpha=1.0] val MAE 1325.28  RMSE 2033.02  R2 0.4815  (0.0s)
+[05:06:16 UTC]   [alpha=10.0] val MAE 1324.66  RMSE 2033.00  R2 0.4815  (0.0s)
+[05:06:16 UTC]   [alpha=100.0] val MAE 1324.15  RMSE 2034.20  R2 0.4809  (0.0s)
+[05:06:16 UTC]   [alpha=500.0] val MAE 1329.36  RMSE 2042.38  R2 0.4767  (0.0s)
+[05:06:16 UTC]   [alpha=1000.0] val MAE 1334.32  RMSE 2050.07  R2 0.4728  (0.0s)
+[05:06:16 UTC] --- Lasso Regression: 5/5 config(s) to run ---
+[05:06:23 UTC]   [alpha=0.01] val MAE 1325.39  RMSE 2033.19  R2 0.4814  (6.8s)
+[05:06:24 UTC]   [alpha=0.1] val MAE 1324.79  RMSE 2032.71  R2 0.4817  (0.9s)
+[05:06:25 UTC]   [alpha=0.5] val MAE 1322.99  RMSE 2032.20  R2 0.4819  (0.7s)
+[05:06:25 UTC]   [alpha=1.0] val MAE 1322.99  RMSE 2033.07  R2 0.4815  (0.6s)
+[05:06:26 UTC]   [alpha=2.0] val MAE 1322.78  RMSE 2033.41  R2 0.4813  (0.2s)
+[05:06:26 UTC] --- Elastic Net Regression: 5/5 config(s) to run ---
+[05:06:26 UTC]   [alpha=0.1,l1_ratio=0.2] val MAE 1343.50  RMSE 2067.12  R2 0.4640  (0.3s)
+[05:06:26 UTC]   [alpha=0.1,l1_ratio=0.5] val MAE 1338.57  RMSE 2057.72  R2 0.4689  (0.3s)
+[05:06:26 UTC]   [alpha=0.5,l1_ratio=0.5] val MAE 1362.72  RMSE 2101.33  R2 0.4461  (0.1s)
+[05:06:26 UTC]   [alpha=1.0,l1_ratio=0.5] val MAE 1386.40  RMSE 2137.20  R2 0.4270  (0.1s)
+[05:06:26 UTC]   [alpha=1.0,l1_ratio=0.8] val MAE 1358.20  RMSE 2093.68  R2 0.4501  (0.1s)
+[05:06:26 UTC] --- Support Vector Regression (Linear): 4/4 config(s) to run ---
+[05:06:27 UTC]   [C=0.1,eps=0.0] val MAE 1356.25  RMSE 2321.11  R2 0.3242  (0.1s)
+[05:06:27 UTC]   [C=1.0,eps=0.0] val MAE 1284.38  RMSE 2161.58  R2 0.4139  (0.8s)
+[05:06:28 UTC]   [C=1.0,eps=100.0] val MAE 1284.47  RMSE 2158.08  R2 0.4158  (0.9s)
+/Users/padaltiruvinayak/Desktop/Credit ML/.venv/lib/python3.14/site-packages/sklearn/svm/_base.py:1295: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+[05:06:34 UTC]   [C=10.0,eps=100.0] val MAE 1258.83  RMSE 2106.87  R2 0.4432  (5.9s)
+[05:06:34 UTC] --- Decision Tree Regressor: 4/4 config(s) to run ---
+[05:06:35 UTC]   [max_depth=None,min_samples_leaf=1] val MAE 1796.05  RMSE 2851.70  R2 -0.0201  (0.7s)
+[05:06:35 UTC]   [max_depth=12,min_samples_leaf=1] val MAE 1432.54  RMSE 2366.86  R2 0.2973  (0.3s)
+[05:06:36 UTC]   [max_depth=16,min_samples_leaf=2] val MAE 1515.27  RMSE 2479.86  R2 0.2286  (0.4s)
+[05:06:36 UTC]   [max_depth=20,min_samples_leaf=4] val MAE 1552.10  RMSE 2477.07  R2 0.2303  (0.5s)
+[05:06:36 UTC] --- Random Forest Regressor: 5/5 config(s) to run ---
+[05:06:37 UTC]   [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] val MAE 1251.21  RMSE 1942.97  R2 0.5264  (1.3s)
+[05:06:39 UTC]   [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] val MAE 1246.05  RMSE 1949.51  R2 0.5232  (1.5s)
+[05:06:44 UTC]   [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] val MAE 1249.68  RMSE 1925.73  R2 0.5348  (4.7s)
+[05:06:57 UTC]   [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] val MAE 1260.47  RMSE 1938.52  R2 0.5286  (13.6s)
+[05:07:03 UTC]   [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] val MAE 1250.47  RMSE 1926.18  R2 0.5346  (6.3s)
+[05:07:03 UTC] --- Extra Trees Regressor: 5/5 config(s) to run ---
+[05:07:05 UTC]   [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] val MAE 1248.64  RMSE 1981.15  R2 0.5076  (1.4s)
+[05:07:06 UTC]   [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] val MAE 1239.83  RMSE 1973.29  R2 0.5115  (1.5s)
+[05:07:10 UTC]   [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] val MAE 1253.00  RMSE 1968.66  R2 0.5138  (3.8s)
+[05:07:20 UTC]   [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] val MAE 1277.98  RMSE 1986.29  R2 0.5051  (10.2s)
+[05:07:26 UTC]   [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] val MAE 1256.14  RMSE 1967.59  R2 0.5144  (5.9s)
+[05:07:26 UTC] --- Gradient Boosting Regressor: 6/6 config(s) to run ---
+[05:07:40 UTC]   [n_estimators=150,lr=0.1,max_depth=3,min_samples_leaf=1] val MAE 1226.90  RMSE 1886.21  R2 0.5537  (13.4s)
+[05:07:57 UTC]   [n_estimators=200,lr=0.05,max_depth=3,min_samples_leaf=3] val MAE 1242.45  RMSE 1906.52  R2 0.5440  (17.1s)
+[05:08:25 UTC]   [n_estimators=250,lr=0.05,max_depth=4,min_samples_leaf=3] val MAE 1216.65  RMSE 1873.81  R2 0.5596  (28.7s)
+[05:08:48 UTC]   [n_estimators=200,lr=0.1,max_depth=4,min_samples_leaf=5] val MAE 1220.45  RMSE 1899.10  R2 0.5476  (22.9s)
+[05:09:14 UTC]   [n_estimators=300,lr=0.03,max_depth=3,min_samples_leaf=10] val MAE 1250.18  RMSE 1933.49  R2 0.5311  (25.7s)
+[05:09:31 UTC]   [n_estimators=200,lr=0.15,max_depth=3,min_samples_leaf=1] val MAE 1220.94  RMSE 1880.33  R2 0.5565  (16.9s)
+[05:09:31 UTC] --- Hist Gradient Boosting Regressor: 13/13 config(s) to run ---
+[05:09:32 UTC]   [lr=0.1,iter=300,leaves=31,min_leaf=20,l2=0.0] val MAE 1218.22  RMSE 1922.11  R2 0.5366  (1.0s)
+[05:09:33 UTC]   [lr=0.06,iter=400,leaves=31,min_leaf=20,l2=1.0] val MAE 1213.23  RMSE 1920.96  R2 0.5371  (1.5s)
+[05:09:35 UTC]   [lr=0.1,iter=400,leaves=63,min_leaf=10,l2=0.0] val MAE 1226.47  RMSE 1944.68  R2 0.5256  (1.1s)
+[05:09:36 UTC]   [lr=0.08,iter=500,leaves=31,min_leaf=20,l2=1.0] val MAE 1207.32  RMSE 1914.37  R2 0.5403  (1.6s)
+[05:09:38 UTC]   [lr=0.05,iter=600,leaves=15,min_leaf=40,l2=1.0] val MAE 1213.59  RMSE 1921.60  R2 0.5368  (1.8s)
+[05:09:39 UTC]   [lr=0.12,iter=300,leaves=31,min_leaf=10,l2=0.0] val MAE 1224.54  RMSE 1942.55  R2 0.5266  (1.0s)
+[05:09:41 UTC]   [lr=0.06,iter=600,leaves=63,min_leaf=20,l2=1.0] val MAE 1209.99  RMSE 1907.96  R2 0.5434  (1.8s)
+[05:09:42 UTC]   [lr=0.1,iter=300,leaves=15,min_leaf=20,l2=5.0] val MAE 1219.69  RMSE 1928.72  R2 0.5334  (0.9s)
+[05:09:43 UTC]   [lr=0.08,iter=400,leaves=31,min_leaf=40,l2=1.0] val MAE 1211.00  RMSE 1913.17  R2 0.5409  (1.2s)
+[05:09:44 UTC]   [lr=0.15,iter=250,leaves=31,min_leaf=20,l2=0.0] val MAE 1221.11  RMSE 1925.69  R2 0.5348  (0.7s)
+[05:09:46 UTC]   [lr=0.05,iter=800,leaves=31,min_leaf=10,l2=1.0] val MAE 1214.86  RMSE 1927.97  R2 0.5337  (2.3s)
+[05:09:47 UTC]   [lr=0.1,iter=350,leaves=63,min_leaf=15,l2=0.5] val MAE 1219.62  RMSE 1916.92  R2 0.5391  (1.3s)
+[05:09:50 UTC]   [incumbent champion recipe (lr=0.03,iter=1500,leaves=31,min_leaf=60,l2=0.5)] val MAE 1211.87  RMSE 1920.15  R2 0.5375  (2.3s)
+[05:09:50 UTC] --- AdaBoost Regressor: 4/4 config(s) to run ---
+[05:09:59 UTC]   [n_estimators=100,lr=0.1,loss=linear] val MAE 1777.09  RMSE 2360.15  R2 0.3012  (9.4s)
+[05:10:14 UTC]   [n_estimators=150,lr=0.05,loss=linear] val MAE 1710.48  RMSE 2321.64  R2 0.3239  (14.6s)
+[05:10:23 UTC]   [n_estimators=100,lr=0.1,loss=square] val MAE 1701.12  RMSE 2354.74  R2 0.3044  (9.0s)
+[05:10:42 UTC]   [n_estimators=200,lr=0.03,loss=linear] val MAE 1680.57  RMSE 2315.61  R2 0.3274  (19.7s)
+[05:10:42 UTC] --- K-Nearest Neighbors Regressor: 4/4 config(s) to run ---
+[05:10:43 UTC]   [k=15,weights=distance] val MAE 1702.72  RMSE 2645.74  R2 0.1219  (0.5s)
+[05:10:43 UTC]   [k=25,weights=distance] val MAE 1714.85  RMSE 2651.17  R2 0.1183  (0.4s)
+[05:10:44 UTC]   [k=25,weights=uniform] val MAE 1733.20  RMSE 2668.17  R2 0.1070  (0.4s)
+[05:10:44 UTC]   [k=40,weights=distance] val MAE 1730.05  RMSE 2660.58  R2 0.1120  (0.5s)
+[05:10:44 UTC] --- XGBoost Regressor: 5/5 config(s) to run ---
+[05:10:45 UTC]   [n_estimators=800,lr=0.05,depth=6,min_child_weight=5,reg_lambda=1.0] val MAE 1209.30  RMSE 1909.96  R2 0.5424  (1.0s)
+[05:10:46 UTC]   [n_estimators=1200,lr=0.03,depth=6,min_child_weight=10,reg_lambda=1.0] val MAE 1209.94  RMSE 1914.98  R2 0.5400  (1.1s)
+[05:10:47 UTC]   [n_estimators=800,lr=0.05,depth=8,min_child_weight=5,reg_lambda=2.0] val MAE 1208.78  RMSE 1916.49  R2 0.5393  (1.0s)
+[05:10:49 UTC]   [n_estimators=1500,lr=0.02,depth=8,min_child_weight=15,reg_lambda=1.0] val MAE 1199.52  RMSE 1903.68  R2 0.5454  (1.9s)
+[05:10:50 UTC]   [n_estimators=1000,lr=0.04,depth=6,min_child_weight=1,reg_lambda=0.5] val MAE 1205.73  RMSE 1907.92  R2 0.5434  (1.1s)
+[05:10:50 UTC] --- CatBoost Regressor: 4/4 config(s) to run ---
+[05:10:53 UTC]   [iterations=2000,lr=0.04,depth=6,l2=3.0] val MAE 1210.44  RMSE 1899.08  R2 0.5476  (2.4s)
+[05:11:00 UTC]   [iterations=2500,lr=0.03,depth=8,l2=3.0] val MAE 1200.47  RMSE 1895.37  R2 0.5494  (7.4s)
+[05:11:02 UTC]   [iterations=1500,lr=0.05,depth=6,l2=1.0] val MAE 1207.63  RMSE 1894.75  R2 0.5497  (2.0s)
+[05:11:07 UTC]   [iterations=3000,lr=0.02,depth=6,l2=5.0] val MAE 1208.47  RMSE 1899.58  R2 0.5474  (5.3s)
+[05:11:07 UTC] --- Log1p Target Experiments: 3/3 config(s) to run ---
+[05:11:10 UTC]   [log1p(HistGB lr=0.03,iter=1500,leaves=31,min_leaf=60)] val MAE 1163.21  RMSE 1957.43  R2 0.5194  (3.1s)
+[05:11:12 UTC]   [log1p(XGB n_estimators=800,lr=0.05,depth=6)] val MAE 1160.44  RMSE 1949.97  R2 0.5230  (2.0s)
+[05:11:18 UTC]   [log1p(CatBoost iterations=2000,lr=0.04,depth=6)] val MAE 1155.67  RMSE 1940.66  R2 0.5276  (6.0s)
+[05:11:19 UTC] Wrote /Users/padaltiruvinayak/Desktop/Credit ML/Outputs/ExperimentSuite/wave3_tuning_results.csv (75 rows).
+[05:11:27 UTC] Blend [50/50 mean of Log1p Target Experiments + XGBoost Regressor] val MAE 1156.70 RMSE 1888.58 R2 0.5526
+[05:11:27 UTC] Champion by validation MAE: Log1p Target Experiments [log1p(CatBoost iterations=2000,lr=0.04,depth=6)] val MAE 1155.67, RMSE 1940.66, R2 0.5276
+[05:11:27 UTC] Refitting champion on train+validation (40000 rows)...
+[05:11:40 UTC] HOLDOUT (once) [Log1p Target Experiments] -> MAE 1154.95  RMSE 2001.08  R2 0.5396
+Traceback (most recent call last):
+  File "/Users/padaltiruvinayak/Desktop/Credit ML/Src/wave3_experiment.py", line 741, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/Users/padaltiruvinayak/Desktop/Credit ML/Src/wave3_experiment.py", line 727, in main
+    promotion = promote_champion(champion, splits)
+  File "/Users/padaltiruvinayak/Desktop/Credit ML/Src/wave3_experiment.py", line 529, in promote_champion
+    raise RuntimeError(
+        f"Staging model expects {reloaded.n_features_in_} features, contract requires 130."
+    )
+RuntimeError: Staging model expects 0 features, contract requires 130.
+[05:30:24 UTC] === Wave-3 corrected-protocol experiment starting (seed 2026) ===
+[05:30:24 UTC] Existing wave-3 split files found and verified — reusing them (no re-split).
+[05:30:24 UTC] Resuming: 76 configuration(s) already recorded.
+[05:30:24 UTC] --- Dummy Regressor (Median Baseline): all 1 config(s) already done, skipping ---
+[05:30:24 UTC] --- Linear Regression: all 1 config(s) already done, skipping ---
+[05:30:24 UTC] --- Ridge Regression: all 6 config(s) already done, skipping ---
+[05:30:24 UTC] --- Lasso Regression: all 5 config(s) already done, skipping ---
+[05:30:24 UTC] --- Elastic Net Regression: all 5 config(s) already done, skipping ---
+[05:30:24 UTC] --- Support Vector Regression (Linear): all 4 config(s) already done, skipping ---
+[05:30:24 UTC] --- Decision Tree Regressor: all 4 config(s) already done, skipping ---
+[05:30:24 UTC] --- Random Forest Regressor: all 5 config(s) already done, skipping ---
+[05:30:24 UTC] --- Extra Trees Regressor: all 5 config(s) already done, skipping ---
+[05:30:24 UTC] --- Gradient Boosting Regressor: all 6 config(s) already done, skipping ---
+[05:30:24 UTC] --- Hist Gradient Boosting Regressor: all 13 config(s) already done, skipping ---
+[05:30:24 UTC] --- AdaBoost Regressor: all 4 config(s) already done, skipping ---
+[05:30:24 UTC] --- K-Nearest Neighbors Regressor: all 4 config(s) already done, skipping ---
+[05:30:24 UTC] --- XGBoost Regressor: all 5 config(s) already done, skipping ---
+[05:30:24 UTC] --- CatBoost Regressor: all 4 config(s) already done, skipping ---
+[05:30:24 UTC] --- Log1p Target Experiments: all 3 config(s) already done, skipping ---
+[05:30:24 UTC] Wrote /Users/padaltiruvinayak/Desktop/Credit ML/Outputs/ExperimentSuite/wave3_tuning_results.csv (76 rows).
+[05:30:24 UTC] Blend row already recorded — skipping (resume).
+[05:30:24 UTC] Champion by validation MAE: Log1p Target Experiments [log1p(CatBoost iterations=2000,lr=0.04,depth=6)] val MAE 1155.67, RMSE 1940.66, R2 0.5276
+[05:30:24 UTC] Refitting champion on train+validation (40000 rows)...
+[05:30:39 UTC] HOLDOUT (once) [Log1p Target Experiments] -> MAE 1154.95  RMSE 2001.08  R2 0.5396
+[05:30:40 UTC] Refreshed /Users/padaltiruvinayak/Desktop/Credit ML/Outputs/Model_Comparison/model_comparison.csv (17 families).
+[05:30:40 UTC] Updated experiment_metadata.json and Models/best_model_metadata.json.
+[05:30:40 UTC] Wave 3 finished in 15.4s — champion Log1p Target Experiments [log1p(CatBoost iterations=2000,lr=0.04,depth=6)] holdout MAE 1154.95, R2 0.5396

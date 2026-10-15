@@ -1,14 +1,25 @@
+import logging
 import os
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
+from typing import Any, Dict, List
 
 import joblib
 import pandas as pd
-from flask import Flask, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
 
 app = Flask(__name__)
-app.secret_key = "claimwise-insurance-prediction-secret-key"
+
+# Secrets and environment-driven configuration (never hard-code keys in production).
+app.secret_key = os.environ.get("CLAIMWISE_SECRET_KEY", "claimwise-dev-only-secret-key")
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB upload ceiling
+FLASK_DEBUG = os.environ.get("CLAIMWISE_DEBUG", "0").lower() in ("1", "true", "yes")
+logging.basicConfig(
+    level=logging.DEBUG if FLASK_DEBUG else logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MODELS_DIR = PROJECT_ROOT / "Models"
@@ -29,6 +40,16 @@ from artifact_inventory import (  # noqa: E402
     resolve_safe_csv_path,
     resolve_safe_output_path,
 )
+from dataset_explorer import (  # noqa: E402
+    ALLOWED_PAGE_SIZES,
+    DEFAULT_PAGE_SIZE,
+    column_statistics,
+    explorer_meta,
+    export_filtered_csv,
+    load_explorer_frame,
+    query_records,
+    validate_dataset,
+)
 from dataset_manager import (  # noqa: E402
     audit_dataframe,
     clear_uploaded_files,
@@ -44,24 +65,28 @@ from prediction_preprocessor import (  # noqa: E402  (Src must be on the path fi
 )
 
 # Authoritative Gallery of all 13 evaluated regression models.
-# Images and metrics are generated directly from the held-out test split.
+# Metrics come from the validation leaderboard (Outputs/Model_Comparison/
+# model_comparison.csv); the champion also carries a single untouched-test
+# evaluation recorded in Outputs/ExperimentSuite/final_test_metrics.csv.
 MODEL_GALLERY = (
     {
         "name": "Hist Gradient Boosting Regressor",
         "slug": "hist-gradient-boosting",
         "folder": "Hist_Gradient_Boosting_Regressor",
         "feature_note": (
-            "Histogram-based gradient boosting uses discrete 256-bin feature quantization for high efficiency. "
-            "Per-fold early-stopping iteration records are saved in Outputs/Hist_Gradient_Boosting_Regressor/cross_validation_folds.csv."
+            "Histogram-based gradient boosting discretizes continuous features into 256 bins for fast split "
+            "evaluation. The tuned winner uses lr=0.03, up to 1,500 stages with early stopping, 31 leaves, "
+            "min_samples_leaf=60 and L2=0.5. Full search log: Outputs/ExperimentSuite/tuning_results.csv."
         ),
-        "summary": "Histogram-based gradient boosting with early stopping — candidate best model with lowest out-of-sample error.",
+        "summary": "Histogram-based gradient boosting — strong baseline family in the wave-3 search.",
         "interpretation": (
-            "Achieves the lowest prediction error across all 13 models (RMSE 1,921.02, MAE 1,215.30, R² 0.5459) "
-            "after 830 boosting stages selected by 3-fold cross-validation early stopping; preserved as Models/best_model.pkl."
+            "A consistent top-tier family across the wave-3 validation split (seed 2026). "
+            "Its best configuration and live metrics are shown in the leaderboard table above, "
+            "generated directly from Outputs/Model_Comparison/model_comparison.csv."
         ),
         "images": (
-            ("hist_gradient_boosting_regressor_actual_vs_predicted.png", "Hist Gradient Boosting Regressor — Actual vs Predicted"),
-            ("hist_gradient_boosting_regressor_residuals.png", "Hist Gradient Boosting Regressor — Residual Analysis"),
+            ("hist_gradient_boosting_regressor_actual_vs_predicted.png", "Hist Gradient Boosting Regressor — Actual vs Predicted (validation)"),
+            ("hist_gradient_boosting_regressor_residuals.png", "Hist Gradient Boosting Regressor — Residual Analysis (validation)"),
         ),
     },
     {
@@ -70,16 +95,16 @@ MODEL_GALLERY = (
         "folder": "Extra_Trees_Regressor",
         "feature_note": (
             "Extremely randomized trees draw random cut-points for each candidate feature at every node split, "
-            "reducing variance and computational overhead. Feature importances are stored in feature_importance.csv."
+            "reducing variance on continuous and encoded inputs. Feature importances are stored in feature_importance.csv."
         ),
-        "summary": "Ensemble of 100 extremely randomized trees with randomized split thresholds.",
+        "summary": "Ensemble of 200 extremely randomized trees (max_depth=16, min_samples_leaf=2, max_features=0.5).",
         "interpretation": (
-            "Ranks second overall among all 13 models (RMSE 1,980.32, MAE 1,254.61, R² 0.5174), outperforming standard "
-            "Random Forest by introducing additional randomization into the tree building process."
+            "Ranks 5th by validation MAE (1,282.74; RMSE 2,094.98, R² 0.5040), slightly behind Random Forest "
+            "on this dataset despite the extra randomization."
         ),
         "images": (
-            ("extra_trees_regressor_actual_vs_predicted.png", "Extra Trees Regressor — Actual vs Predicted"),
-            ("extra_trees_regressor_residuals.png", "Extra Trees Regressor — Residual Analysis"),
+            ("extra_trees_regressor_actual_vs_predicted.png", "Extra Trees Regressor — Actual vs Predicted (validation)"),
+            ("extra_trees_regressor_residuals.png", "Extra Trees Regressor — Residual Analysis (validation)"),
             ("feature_importance.png", "Extra Trees Regressor — Top 20 Feature Importances"),
         ),
     },
@@ -92,14 +117,14 @@ MODEL_GALLERY = (
             "predictions. The top 20 rankings are saved to Outputs/Random_Forest_Regressor/feature_importance.csv — "
             "cat80, cat79, and cont7 dominate the ranking."
         ),
-        "summary": "Bootstrap-aggregated ensemble of 100 deep decision trees with random feature subsampling.",
+        "summary": "Bootstrap-aggregated ensemble of 200 trees (max_depth=16, min_samples_leaf=2, max_features=0.5).",
         "interpretation": (
-            "Averaging many trees reduces variance while preserving non-linear interactions, achieving RMSE 1,984.41 "
-            "and R² 0.5154 on the 10,000 held-out test claims."
+            "Ranks 3rd by validation MAE (1,279.26; RMSE 2,042.45, R² 0.5286), confirming bagged trees remain "
+            "competitive with boosting on this feature set."
         ),
         "images": (
-            ("random_forest_actual_vs_predicted.png", "Random Forest Regressor — Actual vs Predicted"),
-            ("random_forest_residuals.png", "Random Forest Regressor — Residual Analysis"),
+            ("random_forest_actual_vs_predicted.png", "Random Forest Regressor — Actual vs Predicted (validation)"),
+            ("random_forest_residuals.png", "Random Forest Regressor — Residual Analysis (validation)"),
             ("feature_importance.png", "Random Forest — Top 20 Feature Importances"),
         ),
     },
@@ -111,13 +136,14 @@ MODEL_GALLERY = (
             "Gradient Boosting feature importance tracks total impurity reduction across sequential boosting stages, "
             "normalised to sum to 1."
         ),
-        "summary": "Sequential stagewise boosting ensemble where each tree fits the negative gradient residuals.",
+        "summary": "400 sequential boosting stages (lr=0.08, max_depth=3, min_samples_leaf=3).",
         "interpretation": (
-            "Performs very closely to Random Forest (RMSE 2,005.26, MAE 1,277.78, R² 0.5052), ranking 4th among all models."
+            "Close runner-up: rank #2 by validation MAE (1,233.38) and the best validation R² of all 13 models "
+            "(0.5719; RMSE 1,946.26). Loses the MAE-based selection by only 2.16 MAE points to HistGB."
         ),
         "images": (
-            ("gradient_boosting_actual_vs_predicted.png", "Gradient Boosting Regressor — Actual vs Predicted"),
-            ("gradient_boosting_residuals.png", "Gradient Boosting Regressor — Residual Analysis"),
+            ("gradient_boosting_actual_vs_predicted.png", "Gradient Boosting Regressor — Actual vs Predicted (validation)"),
+            ("gradient_boosting_residuals.png", "Gradient Boosting Regressor — Residual Analysis (validation)"),
             ("gradient_boosting_feature_importance.png", "Gradient Boosting Regressor — Top 20 Feature Importances"),
         ),
     },
@@ -129,13 +155,14 @@ MODEL_GALLERY = (
             "L2 Tikhonov regularization penalizes the L2-norm of coefficient weights, shrinking collinear features "
             "and preventing numerical instability."
         ),
-        "summary": "Linear regression with L2 weight regularization (alpha=1.0).",
+        "summary": "Linear regression with L2 weight regularization (tuned alpha=10).",
         "interpretation": (
-            "Achieves RMSE 2,050.45 and R² 0.4826, slightly outperforming ordinary least squares by stabilizing the 130 beta coefficients."
+            "Best linear-family model at validation RMSE 2,174.26 and R² 0.4658, essentially tied with OLS — "
+            "the 130 features are already regularized enough that L2 adds little."
         ),
         "images": (
-            ("ridge_regression_actual_vs_predicted.png", "Ridge Regression — Actual vs Predicted"),
-            ("ridge_regression_residuals.png", "Ridge Regression — Residual Analysis"),
+            ("ridge_regression_actual_vs_predicted.png", "Ridge Regression — Actual vs Predicted (validation)"),
+            ("ridge_regression_residuals.png", "Ridge Regression — Residual Analysis (validation)"),
             ("top_coefficients.png", "Ridge Regression — Top 20 Features by Absolute Coefficient"),
         ),
     },
@@ -149,12 +176,12 @@ MODEL_GALLERY = (
         ),
         "summary": "Ordinary least-squares baseline that predicts loss as an unregularized linear combination.",
         "interpretation": (
-            "Explains about 48.3% of the variance on test rows (RMSE 2,050.52, R² 0.4826). The linear constraint caps performance "
-            "because insurance claim loss has strong non-linear interactions."
+            "Explains about 46.5% of validation variance (RMSE 2,175.02, R² 0.4654). The linear constraint caps "
+            "performance because insurance claim loss has strong non-linear interactions."
         ),
         "images": (
-            ("linear_regression_actual_vs_predicted.png", "Linear Regression — Actual vs Predicted"),
-            ("linear_regression_residuals.png", "Linear Regression — Residual Analysis"),
+            ("linear_regression_actual_vs_predicted.png", "Linear Regression — Actual vs Predicted (validation)"),
+            ("linear_regression_residuals.png", "Linear Regression — Residual Analysis (validation)"),
             ("linear_regression_top_coefficients.png", "Linear Regression — Top 20 Features by Absolute Coefficient"),
         ),
     },
@@ -165,13 +192,13 @@ MODEL_GALLERY = (
         "feature_note": (
             "L1 regularization drives coefficients of non-informative features to exact zero, performing embedded feature selection."
         ),
-        "summary": "Linear regression with L1 norm penalty (alpha=1.0).",
+        "summary": "Linear regression with L1 norm penalty (tuned alpha=0.5).",
         "interpretation": (
-            "Achieves RMSE 2,051.88 and R² 0.4819 while enforcing sparsity across the 130 input variables."
+            "Validation RMSE 2,174.24 and R² 0.4658 — matches Ridge while shrinking weak coefficients toward zero."
         ),
         "images": (
-            ("lasso_regression_actual_vs_predicted.png", "Lasso Regression — Actual vs Predicted"),
-            ("lasso_regression_residuals.png", "Lasso Regression — Residual Analysis"),
+            ("lasso_regression_actual_vs_predicted.png", "Lasso Regression — Actual vs Predicted (validation)"),
+            ("lasso_regression_residuals.png", "Lasso Regression — Residual Analysis (validation)"),
             ("top_coefficients.png", "Lasso Regression — Top 20 Features by Absolute Coefficient"),
         ),
     },
@@ -180,15 +207,15 @@ MODEL_GALLERY = (
         "slug": "elastic-net",
         "folder": "Elastic_Net_Regression",
         "feature_note": (
-            "Combines L1 and L2 penalties (l1_ratio=0.5) to balance sparsity and grouping of correlated continuous variables."
+            "Combines L1 and L2 penalties (tuned alpha=0.1, l1_ratio=0.5) to balance sparsity and grouping of correlated variables."
         ),
         "summary": "Regularized linear regression combining L1 (Lasso) and L2 (Ridge) penalties.",
         "interpretation": (
-            "Yields RMSE 2,162.80 and R² 0.4244, trading peak R² for improved numerical stability on correlated inputs."
+            "Validation RMSE 2,204.38 and R² 0.4509 — trading a little peak accuracy for stronger shrinkage."
         ),
         "images": (
-            ("elastic_net_regression_actual_vs_predicted.png", "Elastic Net Regression — Actual vs Predicted"),
-            ("elastic_net_regression_residuals.png", "Elastic Net Regression — Residual Analysis"),
+            ("elastic_net_regression_actual_vs_predicted.png", "Elastic Net Regression — Actual vs Predicted (validation)"),
+            ("elastic_net_regression_residuals.png", "Elastic Net Regression — Residual Analysis (validation)"),
             ("top_coefficients.png", "Elastic Net Regression — Top 20 Features by Absolute Coefficient"),
         ),
     },
@@ -197,15 +224,17 @@ MODEL_GALLERY = (
         "slug": "support-vector-regression",
         "folder": "Support_Vector_Regression_Linear",
         "feature_note": (
-            "Linear SVR fits a margin-based hyperplane with an epsilon-insensitive loss tube, making it robust against small noise."
+            "Linear SVR fits a margin-based hyperplane with an epsilon-insensitive loss tube. Tuned C=10 with a "
+            "wide ε=100 tube that ignores errors below the tube width."
         ),
-        "summary": "Linear support vector machine optimizing epsilon-insensitive loss.",
+        "summary": "Linear support vector machine optimizing epsilon-insensitive loss (tuned C=10, ε=100).",
         "interpretation": (
-            "Achieves low median absolute error (785.42) with overall test RMSE 2,174.74 and R² 0.4180."
+            "Validation RMSE 2,272.49 and R² 0.4164 — the wide ε-tube shrinks residual sensitivity but caps "
+            "overall explained variance."
         ),
         "images": (
-            ("support_vector_regression_linear_actual_vs_predicted.png", "Linear SVR — Actual vs Predicted"),
-            ("support_vector_regression_linear_residuals.png", "Linear SVR — Residual Analysis"),
+            ("support_vector_regression_linear_actual_vs_predicted.png", "Linear SVR — Actual vs Predicted (validation)"),
+            ("support_vector_regression_linear_residuals.png", "Linear SVR — Residual Analysis (validation)"),
             ("top_coefficients.png", "Linear SVR — Top 20 Features by Absolute Coefficient"),
         ),
     },
@@ -216,13 +245,14 @@ MODEL_GALLERY = (
         "feature_note": (
             "Decision-tree feature importance is the total reduction in split impurity across the tree, normalised to sum to 1."
         ),
-        "summary": "A single CART decision tree recursively partitioning the 130-feature space.",
+        "summary": "A single CART decision tree (tuned max_depth=12) recursively partitioning the 130-feature space.",
         "interpretation": (
-            "Predicts a piece-wise constant value with high variance, resulting in RMSE 2,638.94 and R² 0.1431."
+            "Predicts piece-wise constant values with high variance: validation RMSE 2,326.44 and R² 0.3884 — "
+            "a clear illustration of why single trees lose to ensembles."
         ),
         "images": (
-            ("decision_tree_actual_vs_predicted.png", "Decision Tree Regressor — Actual vs Predicted"),
-            ("decision_tree_residuals.png", "Decision Tree Regressor — Residual Analysis"),
+            ("decision_tree_actual_vs_predicted.png", "Decision Tree Regressor — Actual vs Predicted (validation)"),
+            ("decision_tree_residuals.png", "Decision Tree Regressor — Residual Analysis (validation)"),
             ("decision_tree_feature_importance.png", "Decision Tree Regressor — Top 20 Feature Importances"),
         ),
     },
@@ -231,15 +261,17 @@ MODEL_GALLERY = (
         "slug": "k-nearest-neighbors",
         "folder": "K_Nearest_Neighbors_Regressor",
         "feature_note": (
-            "Non-parametric local regression predicting the arithmetic mean loss of the k=25 nearest neighbors in 130-dimensional space."
+            "Non-parametric local regression predicting the distance-weighted mean loss of the k=15 nearest "
+            "neighbors in 130-dimensional space."
         ),
-        "summary": "Instance-based regression using Euclidean distance across 25 nearest neighbors.",
+        "summary": "Instance-based regression using Euclidean distance across 15 nearest neighbors.",
         "interpretation": (
-            "Suffers from the curse of dimensionality in 130D space (RMSE 2,673.83, R² 0.1203), confirming that tree ensembles handle high dimensionality better."
+            "Suffers from the curse of dimensionality in 130D space (validation RMSE 2,785.95, R² 0.1229), "
+            "confirming that tree ensembles handle high dimensionality far better."
         ),
         "images": (
-            ("k_nearest_neighbors_regressor_actual_vs_predicted.png", "KNN Regressor — Actual vs Predicted"),
-            ("k_nearest_neighbors_regressor_residuals.png", "KNN Regressor — Residual Analysis"),
+            ("k_nearest_neighbors_regressor_actual_vs_predicted.png", "KNN Regressor — Actual vs Predicted (validation)"),
+            ("k_nearest_neighbors_regressor_residuals.png", "KNN Regressor — Residual Analysis (validation)"),
         ),
     },
     {
@@ -247,15 +279,16 @@ MODEL_GALLERY = (
         "slug": "dummy-regressor",
         "folder": "Dummy_Regressor_Median_Baseline",
         "feature_note": (
-            "Zero-feature constant predictor: always predicts the training set median claim loss (~2,115.47) without reading any features."
+            "Zero-feature constant predictor: always predicts the training-set median claim loss without reading any features."
         ),
         "summary": "Non-learning baseline model predicting the training set median.",
         "interpretation": (
-            "Establishes the fundamental sanity check: RMSE 2,986.61, MAE 1,788.56, R² -0.0976. Confirms that all machine learning models add substantial predictive value."
+            "Sanity check: validation RMSE 3,119.07, MAE 1,827.59, R² -0.0994. Every machine-learning candidate "
+            "beats it decisively, confirming the features carry real signal."
         ),
         "images": (
-            ("dummy_regressor_median_baseline_actual_vs_predicted.png", "Dummy Regressor — Actual vs Predicted"),
-            ("dummy_regressor_median_baseline_residuals.png", "Dummy Regressor — Residual Analysis"),
+            ("dummy_regressor_median_baseline_actual_vs_predicted.png", "Dummy Regressor — Actual vs Predicted (validation)"),
+            ("dummy_regressor_median_baseline_residuals.png", "Dummy Regressor — Residual Analysis (validation)"),
         ),
     },
     {
@@ -263,15 +296,17 @@ MODEL_GALLERY = (
         "slug": "adaboost",
         "folder": "AdaBoost_Regressor",
         "feature_note": (
-            "AdaBoost iteratively adjusts instance weights based on prediction errors on the previous estimator."
+            "AdaBoost iteratively adjusts instance weights based on prediction errors on the previous estimator "
+            "(tuned n_estimators=100, learning_rate=0.1, loss='square')."
         ),
         "summary": "Adaptive boosting ensemble using decision stump base estimators.",
         "interpretation": (
-            "Right-skewed heavy-tailed claims loss destabilizes standard AdaBoost exponential reweighting (RMSE 4,627.19, R² -1.63), demonstrating why gradient boosting with squared loss is necessary."
+            "Heavy-tailed claim losses destabilize AdaBoost's stage reweighting even with square loss "
+            "(validation RMSE 2,424.10, R² 0.3360), demonstrating why squared-loss gradient boosting is necessary here."
         ),
         "images": (
-            ("adaboost_regressor_actual_vs_predicted.png", "AdaBoost Regressor — Actual vs Predicted"),
-            ("adaboost_regressor_residuals.png", "AdaBoost Regressor — Residual Analysis"),
+            ("adaboost_regressor_actual_vs_predicted.png", "AdaBoost Regressor — Actual vs Predicted (validation)"),
+            ("adaboost_regressor_residuals.png", "AdaBoost Regressor — Residual Analysis (validation)"),
             ("feature_importance.png", "AdaBoost Regressor — Top 20 Feature Importances"),
         ),
     },
@@ -281,86 +316,86 @@ MODEL_METADATA = {
     "Hist Gradient Boosting Regressor": {
         "model_type": "Histogram-based Gradient Boosted Trees with Early Stopping",
         "family": "Boosting Ensemble",
-        "algorithm": "Gradient boosting that discretizes continuous numerical features into integer-valued bins (256 bins), accelerating split evaluations. Fitted with 3-fold cross-validation early stopping and L2 regularization.",
-        "cv_summary": "3-Fold Early-Stopping CV (median 830 iters) OOF MAE: 1,214.84, RMSE: 1,956.68, R²: 0.5484; 5-Fold CV: MAE 1,203.37 ± 10.99, RMSE 1,937.66 ± 34.40, R² 0.5532 ± 0.0056.",
+        "algorithm": "Gradient boosting over 256-bin feature histograms with early stopping. Representative tuned configuration: learning_rate=0.08, max_iter=500, max_leaf_nodes=31, min_samples_leaf=20, l2_regularization=1.0.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026): best configuration selected by validation MAE. Live values come from Outputs/Model_Comparison/model_comparison.csv.",
     },
     "Extra Trees Regressor": {
         "model_type": "Extremely Randomized Trees Ensemble",
         "family": "Bagging Ensemble",
-        "algorithm": "Ensemble of 100 randomized decision trees drawing random thresholds for each candidate split, reducing variance on continuous and encoded inputs.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,254.61, RMSE 1,980.32, R² 0.5174.",
+        "algorithm": "Ensemble of 200 randomized decision trees drawing random thresholds for each candidate split (max_depth=16, min_samples_leaf=2, max_features=0.5).",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Random Forest Regressor": {
         "model_type": "Bootstrap Aggregated (Bagging) Ensemble of Decision Trees",
         "family": "Bagging Ensemble",
-        "algorithm": "Ensemble of 100 deep decision trees fitted on bootstrap samples with random feature subsampling at each node (max_depth=20, min_samples_leaf=2). Predictions are the arithmetic mean of all individual tree estimates.",
-        "cv_summary": "5-Fold CV: MAE 1,260.39 ± 5.03, RMSE 1,978.81 ± 28.28, R² 0.5339 ± 0.0116.",
+        "algorithm": "Ensemble of 200 trees fitted on bootstrap samples with random feature subsampling (max_depth=16, min_samples_leaf=2, max_features=0.5).",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Gradient Boosting Regressor": {
         "model_type": "Sequential Stagewise Gradient Boosted Decision Trees",
         "family": "Boosting Ensemble",
-        "algorithm": "150 sequential boosting iterations adding shallow regression trees (max_depth=3) to fit negative gradients (residuals) of the squared error loss function with shrinkage learning rate 0.05.",
-        "cv_summary": "5-Fold CV: MAE 1,269.72 ± 13.74, RMSE 1,978.59 ± 41.74, R² 0.5339 ± 0.0179.",
+        "algorithm": "400 sequential boosting stages adding shallow regression trees (max_depth=3, min_samples_leaf=3) with shrinkage learning_rate=0.08.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Ridge Regression": {
         "model_type": "L2-Regularized Linear Regression (Tikhonov)",
         "family": "Linear Model",
-        "algorithm": "Ridge regression imposing an L2 penalty on beta coefficients to avoid multicollinearity and coefficient inflation in 130-dimensional space.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,333.49, RMSE 2,050.45, R² 0.4826.",
+        "algorithm": "Ridge regression imposing an L2 penalty on beta coefficients; tuned alpha=10 from a 6-point grid.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Linear Regression": {
         "model_type": "Ordinary Least Squares (OLS) Linear Regression",
         "family": "Linear Model",
-        "algorithm": "Closed-form analytical linear regression baseline estimating 130 beta coefficients to minimize the sum of squared residuals between observed and predicted losses.",
-        "cv_summary": "5-Fold CV: MAE 1,327.86 ± 15.98, RMSE 2,093.48 ± 51.00, R² 0.4785 ± 0.0108.",
+        "algorithm": "Closed-form analytical linear regression baseline estimating 130 beta coefficients to minimize squared residuals.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Lasso Regression": {
         "model_type": "L1-Regularized Linear Regression (Lasso)",
         "family": "Linear Model",
-        "algorithm": "L1-regularized regression promoting sparse coefficients, driving non-influential features to exact zero.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,333.58, RMSE 2,051.88, R² 0.4819.",
+        "algorithm": "L1-regularized regression promoting sparse coefficients; tuned alpha=0.5 from a 5-point grid.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Elastic Net Regression": {
         "model_type": "L1 + L2 Regularized Linear Regression",
         "family": "Linear Model",
-        "algorithm": "Linearly combined penalty of L1 and L2 regularization (l1_ratio=0.5) balancing variable selection and correlated coefficient grouping.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,394.39, RMSE 2,162.80, R² 0.4244.",
+        "algorithm": "Linearly combined L1/L2 penalty; tuned alpha=0.1 with l1_ratio=0.5 from a 5-point grid.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Support Vector Regression (Linear)": {
         "model_type": "Linear Support Vector Regression (Linear SVR)",
         "family": "Margin-Based",
-        "algorithm": "Support vector regression using epsilon-insensitive loss tube and dual optimization, robust against small residual fluctuations.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,289.04, RMSE 2,174.74, R² 0.4180.",
+        "algorithm": "Epsilon-insensitive linear SVR; tuned C=10 with ε=100 from a 4-point grid. Kernel SVR was excluded as computationally impractical on 32,500×130 inputs.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Decision Tree Regressor": {
         "model_type": "Single Recursive Partitioning Decision Tree",
         "family": "Decision Tree",
-        "algorithm": "A single classification and regression tree (CART) recursively splitting the 130-dimensional feature space to maximize reduction in squared error (max_depth=20, min_samples_leaf=2).",
-        "cv_summary": "5-Fold CV: MAE 1,613.58 ± 26.99, RMSE 2,618.39 ± 77.33, R² 0.1836 ± 0.0444.",
+        "algorithm": "A single CART regression tree; tuned max_depth=12 from a 4-point grid.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "K-Nearest Neighbors Regressor": {
-        "model_type": "K-Nearest Neighbors Regression (k=25)",
+        "model_type": "K-Nearest Neighbors Regression (k=15, distance-weighted)",
         "family": "Instance-Based",
-        "algorithm": "Non-parametric instance regression computing the uniform average target loss of the 25 nearest test points in Euclidean space.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,720.33, RMSE 2,673.83, R² 0.1203.",
+        "algorithm": "Distance-weighted average of the 15 nearest points in 130-dimensional Euclidean space; tuned over 4 k/weight configurations.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "Dummy Regressor (Median Baseline)": {
         "model_type": "Constant Median Statistical Baseline",
         "family": "Baseline",
-        "algorithm": "Baseline predictor that always returns the training set median claim loss (~2,115.47), ignoring all input features.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 1,788.56, RMSE 2,986.61, R² -0.0976.",
+        "algorithm": "Baseline predictor that always returns the training-set median claim loss, ignoring all input features.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
     "AdaBoost Regressor": {
         "model_type": "Adaptive Boosting Regression Ensemble",
         "family": "Boosting Ensemble",
-        "algorithm": "Sequential boosting ensemble adjusting training sample weights after each stage based on individual instance prediction errors.",
-        "cv_summary": "Evaluated on 10,000 held-out test records: MAE 4,278.58, RMSE 4,627.19, R² -1.6346.",
+        "algorithm": "Sequential boosting over decision stumps with square-loss reweighting; tuned n_estimators=100, learning_rate=0.1 from 4 configurations.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026). Live values come from Outputs/Model_Comparison/model_comparison.csv."
     },
 }
 
 COMPARISON_CHART = (
     "Model_Comparison/model_comparison_bar_chart.png",
-    "ClaimWise model comparison on the 10,000 test rows — RMSE (lower is better) and R² (higher is better).",
+    "ClaimWise model comparison on the 7,500-row validation split — MAE (lower is better) and R² (higher is better).",
 )
 
 NOTEBOOK_PURPOSE = {
@@ -384,6 +419,7 @@ NOTEBOOK_PURPOSE = {
 }
 
 _LEAKAGE_CACHE = None
+_DATASET_STATS_CACHE = None
 
 
 def _find_dataset_file(new_name, legacy_name):
@@ -437,8 +473,28 @@ def load_stage_rows():
     return [row for key, row in rows.items() if not key.startswith(("6c", "6d"))]
 
 
+@app.errorhandler(413)
+def _payload_too_large(_error):
+    flash("The uploaded file is too large. Maximum allowed size is 20 MB.")
+    return redirect(url_for("dataset")), 303
+
+
 def load_dataset_stats():
-    """Dataset facts read from the real CSV files and the stage summary."""
+    """Dataset facts read from the real CSV files and the stage summary.
+
+    Cached in-process and invalidated automatically when the source CSV
+    modification times change.
+    """
+    global _DATASET_STATS_CACHE
+    raw_path = DATASET_DIR / "01_raw_claimwise_50000.csv"
+    final_path = DATASET_DIR / "05_preprocessed_final.csv"
+    stage_path = OUTPUTS_DIR / "Preprocessing" / "claimwise_preprocessing_stage_summary.csv"
+    fingerprint = tuple(
+        (str(p), p.stat().st_mtime_ns if p.exists() else None)
+        for p in (raw_path, final_path, stage_path)
+    )
+    if _DATASET_STATS_CACHE is not None and _DATASET_STATS_CACHE[0] == fingerprint:
+        return _DATASET_STATS_CACHE[1]
     stages = _read_stage_rows()
     raw_stage = stages.get("1. Raw", {})
     final_stage = stages.get("5. Final preprocessed", {})
@@ -478,6 +534,7 @@ def load_dataset_stats():
         if "id" in raw_columns and "id" not in final_columns:
             stats["removed_column"] = "id"
 
+    _DATASET_STATS_CACHE = (fingerprint, stats)
     return stats
 
 
@@ -543,16 +600,38 @@ def load_model_gallery():
                 rank = idx + 1
                 break
 
+        # Build interpretation and cv_summary from the LIVE metrics row so no
+        # stale hard-coded numbers can be displayed after a retraining run.
+        if metrics:
+            mae = float(metrics.get("MAE", float("nan")))
+            rmse = float(metrics.get("RMSE", float("nan")))
+            r2 = float(metrics.get("R2", float("nan")))
+            total = len(comparison_rows)
+            rank_txt = f"Rank #{rank}" if rank else "Rank unlisted"
+            interpretation = (
+                f"{rank_txt} of {total} families by validation MAE. "
+                f"Validation MAE ${mae:,.2f}, RMSE ${rmse:,.2f}, R² {r2:.4f} "
+                f"on the wave-3 validation split (seed 2026)."
+            )
+            best_flag = " (production champion)" if best_name and model["name"] == best_name else ""
+            cv_summary = (
+                f"Wave-3 validation split (7,500 rows, seed 2026): MAE ${mae:,.2f}, "
+                f"RMSE ${rmse:,.2f}, R² {r2:.4f}{best_flag}."
+            )
+        else:
+            interpretation = model["interpretation"]
+            cv_summary = meta.get("cv_summary", "Evaluated on the wave-3 validation split.")
+
         gallery.append(
             {
                 "name": model["name"],
                 "slug": model["slug"],
                 "summary": model["summary"],
-                "interpretation": model["interpretation"],
+                "interpretation": interpretation,
                 "feature_note": model.get("feature_note"),
                 "model_type": meta.get("model_type", "Regression Algorithm"),
                 "algorithm": meta.get("algorithm", model["summary"]),
-                "cv_summary": meta.get("cv_summary", "Evaluated on 10,000 test records."),
+                "cv_summary": cv_summary,
                 "status": "Trained & Evaluated",
                 "rank": rank,
                 "metrics": metrics,
@@ -1733,6 +1812,28 @@ def load_academic_data():
     return available
 
 
+def load_final_test_row():
+    """Final untouched-test metrics for the promoted champion, if evaluated."""
+    final_test_path = OUTPUTS_DIR / "ExperimentSuite" / "final_test_metrics.csv"
+    if not final_test_path.exists():
+        return None
+    try:
+        return pd.read_csv(final_test_path).to_dict(orient="records")[0]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def load_classification_metadata():
+    """Metadata for the separate high-loss triage classifier, if it exists."""
+    path = MODELS_DIR / "high_loss_classifier_metadata.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @app.route("/")
 @app.route("/index")
 def index():
@@ -1743,6 +1844,7 @@ def index():
         stats=load_dataset_stats(),
         best_name=best_name,
         best_metrics=best_metrics,
+        final_test_row=load_final_test_row(),
         model_rows=model_rows,
     )
 
@@ -1799,22 +1901,33 @@ def dataset():
             stats=load_dataset_stats(),
             dataset_csvs=dataset_csvs,
             dataset_charts=dataset_charts,
+            explorer=explorer_meta("upload"),
+            validation=validate_dataset("upload"),
+            column_stats=column_statistics("upload"),
+            page_sizes=list(ALLOWED_PAGE_SIZES),
+            default_page_size=DEFAULT_PAGE_SIZE,
         )
     else:
-        # Mode A: Original ClaimWise dataset
-        raw_df, _ = read_csv_safe(DATASET_DIR / "01_raw_claimwise_50000.csv")
+        # Mode A: Original ClaimWise dataset — dynamic explorer backed by the
+        # cached raw frame (first 500 records shown, full pagination).
+        raw_df, raw_err = load_explorer_frame("raw")
+        raw_path = DATASET_DIR / "01_raw_claimwise_50000.csv"
         audit = (
             audit_dataframe(
                 raw_df,
                 file_name="01_raw_claimwise_50000.csv",
-                file_size_bytes=(DATASET_DIR / "01_raw_claimwise_50000.csv").stat().st_size
-                if (DATASET_DIR / "01_raw_claimwise_50000.csv").exists()
-                else 0,
+                file_size_bytes=raw_path.stat().st_size if raw_path.exists() else 0,
                 selected_target="loss",
             )
             if raw_df is not None
             else None
         )
+        if raw_df is None:
+            upload_error = upload_error or raw_err
+
+        explorer = explorer_meta("raw")
+        validation = validate_dataset("raw")
+        column_stats = column_statistics("raw")
 
         mode = "original"
         return render_template(
@@ -1826,6 +1939,11 @@ def dataset():
             upload_success=upload_success,
             dataset_csvs=dataset_csvs,
             dataset_charts=dataset_charts,
+            explorer=explorer,
+            validation=validation,
+            column_stats=column_stats,
+            page_sizes=list(ALLOWED_PAGE_SIZES),
+            default_page_size=DEFAULT_PAGE_SIZE,
             target_distribution={
                 "src": "Data_Inspection/claimwise_raw_target_distribution.png",
                 "alt": "Distribution of Claim Loss (raw dataset)",
@@ -1837,6 +1955,56 @@ def dataset():
                 "caption": "ClaimWise Feature Schema Composition (116 categorical, 14 continuous, 1 target, 1 ID).",
             },
         )
+
+
+@app.route("/dataset/api/records")
+def dataset_api_records():
+    """Paginated JSON records for the dataset explorer (server-side slicing)."""
+    payload = query_records(
+        source=request.args.get("source", "raw"),
+        page=request.args.get("page", 1, type=int),
+        page_size=request.args.get("page_size", DEFAULT_PAGE_SIZE, type=int),
+        search=request.args.get("search", ""),
+        filter_col=request.args.get("filter_col", ""),
+        filter_op=request.args.get("filter_op", "contains"),
+        filter_value=request.args.get("filter_value", ""),
+        sort_by=request.args.get("sort_by", ""),
+        sort_dir=request.args.get("sort_dir", "asc"),
+    )
+    return jsonify(payload), 200 if payload.get("success") else 400
+
+
+@app.route("/dataset/api/stats")
+def dataset_api_stats():
+    """Computed per-column statistics and target summary for the explorer."""
+    payload = column_statistics(request.args.get("source", "raw"))
+    return jsonify(payload), 200 if payload.get("success") else 404
+
+
+@app.route("/dataset/export")
+def dataset_export():
+    """Download the current (optionally filtered) explorer view as CSV.
+
+    Explicitly separate from the raw full-dataset download so users always
+    know whether they are fetching the source file or a derived selection.
+    """
+    csv_text, filename, err = export_filtered_csv(
+        source=request.args.get("source", "raw"),
+        search=request.args.get("search", ""),
+        filter_col=request.args.get("filter_col", ""),
+        filter_op=request.args.get("filter_op", "contains"),
+        filter_value=request.args.get("filter_value", ""),
+        sort_by=request.args.get("sort_by", ""),
+        sort_dir=request.args.get("sort_dir", "asc"),
+    )
+    if err or csv_text is None:
+        flash(err or "The filtered export could not be generated.")
+        return redirect(url_for("dataset"))
+
+    response = Response(csv_text, mimetype="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @app.route("/dataset/reset", methods=["GET", "POST"])
@@ -1862,15 +2030,8 @@ def preprocessing():
 
 @app.route("/visualization")
 def visualization():
-    modules = load_visualization_modules()
-    eda_csvs = [c for c in get_csv_inventory() if c["page"] == "visualization"]
-    eda_charts = [v for v in get_visualization_inventory() if v["page"] == "visualization"]
-    return render_template(
-        "visualization.html",
-        modules=modules,
-        eda_csvs=eda_csvs,
-        eda_charts=eda_charts,
-    )
+    """Legacy URL retained for compatibility; functionality merged into EDA & Visualization."""
+    return redirect(url_for("eda_visualization"), code=302)
 
 
 @app.route("/models")
@@ -1909,6 +2070,8 @@ def models():
         notebooks=load_notebooks(),
         model_csvs=model_csvs,
         model_charts=model_charts,
+        final_test_row=load_final_test_row(),
+        classification=load_classification_metadata(),
     )
 
 
@@ -2139,6 +2302,7 @@ def reports():
     best_metrics = model_rows[0] if model_rows else None
     all_csvs = get_csv_inventory()
     all_charts = get_visualization_inventory()
+    outputs_summary = get_outputs_summary()
     stats = load_dataset_stats()
     kpi_cards = load_model_kpis()
     return render_template(
@@ -2148,9 +2312,12 @@ def reports():
         best_metrics=best_metrics,
         all_csvs=all_csvs,
         all_charts=all_charts,
+        outputs_summary=outputs_summary,
+        final_test_row=load_final_test_row(),
         stats=stats,
         kpi_cards=kpi_cards,
         model_ready=bool(model_rows),
+        classification=load_classification_metadata(),
     )
 
 
@@ -2180,35 +2347,133 @@ def csv_download(filepath):
     return send_from_directory(safe_path.parent, safe_path.name, as_attachment=True)
 
 
+# Human-readable model names for artifact search hints, keyed by the
+# first Outputs/ folder segment of each artifact path.
+_MODEL_FOLDER_HINTS = {
+    "Hist_Gradient_Boosting_Regressor": "Hist Gradient Boosting Regressor",
+    "Extra_Trees_Regressor": "Extra Trees Regressor",
+    "Random_Forest_Regressor": "Random Forest Regressor",
+    "Gradient_Boosting_Regressor": "Gradient Boosting Regressor",
+    "Decision_Tree_Regressor": "Decision Tree Regressor",
+    "Linear_Regression": "Linear Regression",
+    "Ridge_Regression": "Ridge Regression",
+    "Lasso_Regression": "Lasso Regression",
+    "Elastic_Net_Regression": "Elastic Net Regression",
+    "K_Nearest_Neighbors_Regressor": "K-Nearest Neighbors Regressor",
+    "AdaBoost_Regressor": "AdaBoost Regressor",
+    "Support_Vector_Regression_Linear": "Support Vector Regression",
+    "Dummy_Regressor_Median_Baseline": "Dummy Regressor Baseline",
+    "Model_Comparison": "Model Comparison",
+    "CrossValidation": "Cross Validation",
+    "Final_Model_Evaluation": "Final Model Evaluation",
+    "Final_Prediction": "Final Prediction",
+    "ExperimentSuite": "Experiment Suite",
+}
+
+
+def _artifact_model_hint(rel_to_outputs: str) -> str:
+    """Return a searchable model/topic hint for an Outputs-relative path."""
+    parts = str(rel_to_outputs).replace("\\", "/").split("/")
+    if not parts:
+        return ""
+    return _MODEL_FOLDER_HINTS.get(parts[0], "")
+
+
+def _image_card(view: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize a visualization-inventory entry for the chart card partial."""
+    return {
+        "web_src": view.get("web_src"),
+        "title": view.get("title"),
+        "description": view.get("description"),
+        "topic": view.get("topic"),
+        "filename": view.get("filename"),
+        "model_hint": _artifact_model_hint(view.get("web_src", "")),
+    }
+
+
+@app.route("/eda-visualization")
+def eda_visualization():
+    """Unified EDA & Visualization studio: overview, EDA charts, model
+    evaluation charts, and the complete generated-outputs gallery."""
+    summary = get_outputs_summary()
+    outputs_items = get_outputs_inventory(use_cache=True)
+    vis_inv = get_visualization_inventory(use_cache=True)
+    csv_inv = get_csv_inventory(use_cache=True)
+    modules = load_visualization_modules()
+    stats = load_dataset_stats()
+    raw_stats = column_statistics("raw")
+
+    curated_srcs = {v["src"] for mod in modules for v in mod["visualizations"]}
+    eda_topics = {"Exploratory Data Analysis", "Correlation & Feature Analysis", "Dataset Inspection"}
+    eval_topics = {
+        "Model Diagnostics",
+        "Model Comparison",
+        "Feature Importance",
+        "Cross-Validation",
+        "Model Evaluation",
+    }
+
+    eda_charts = []
+    eval_charts = []
+    for view in vis_inv:
+        web_src = view.get("web_src", "")
+        if web_src in curated_srcs:
+            continue
+        topic = view.get("topic", "")
+        if topic in eda_topics:
+            eda_charts.append(_image_card(view))
+        elif topic in eval_topics:
+            eval_charts.append(_image_card(view))
+
+    # Group evaluation charts by their model/folder heading.
+    eval_groups: List[Dict[str, Any]] = []
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for card in eval_charts:
+        key = card["model_hint"] or card["topic"] or "Other Evaluation Outputs"
+        grouped.setdefault(key, []).append(card)
+    for key in sorted(grouped):
+        eval_groups.append({"title": key, "charts": grouped[key]})
+
+    eda_csvs = [c for c in csv_inv if c["page"] == "visualization"]
+
+    overview = {
+        "rows": raw_stats.get("rows") if raw_stats.get("success") else stats.get("raw_rows"),
+        "columns": raw_stats.get("column_count") if raw_stats.get("success") else stats.get("raw_cols"),
+        "categorical_count": stats.get("categorical_count"),
+        "continuous_count": stats.get("continuous_count"),
+        "target": stats.get("target_column") or "loss",
+        "missing_cells": raw_stats.get("total_missing"),
+        "duplicate_rows": raw_stats.get("duplicate_rows"),
+        "chart_count": summary["total_images"],
+        "artifact_count": summary["total_files"],
+        "csv_count": summary["total_csvs"],
+        "curated_count": sum(len(m["visualizations"]) for m in modules),
+        "available": bool(raw_stats.get("success")),
+    }
+
+    return render_template(
+        "eda_visualization.html",
+        overview=overview,
+        modules=modules,
+        eda_charts=eda_charts,
+        eval_groups=eval_groups,
+        eda_csvs=eda_csvs,
+        summary=summary,
+        items=outputs_items,
+        type_filters=[
+            ("all", "All Files", summary["total_files"]),
+            ("image", "Charts & Images", summary["total_images"]),
+            ("csv", "CSV Data", summary["total_csvs"]),
+            ("other", "JSON, Logs & Docs", summary["total_others"]),
+        ],
+    )
+
+
 @app.route("/outputs-gallery", endpoint="outputs_gallery")
 @app.route("/gallery")
 def outputs_gallery():
-    """Display the vertical scrolling Project Outputs gallery discovering all files recursively."""
-    summary = get_outputs_summary()
-    items = get_outputs_inventory(use_cache=True)
-    selected_topic = request.args.get("topic", "all").strip().lower()
-    search_query = request.args.get("search", "").strip().lower()
-
-    if selected_topic and selected_topic != "all":
-        items = [x for x in items if x["topic_key"] == selected_topic]
-
-    if search_query:
-        items = [
-            x
-            for x in items
-            if search_query in x["filename"].lower()
-            or search_query in x["topic"].lower()
-            or search_query in x.get("description", "").lower()
-        ]
-
-    return render_template(
-        "outputs_gallery.html",
-        active_page="outputs_gallery",
-        summary=summary,
-        items=items,
-        selected_topic=selected_topic,
-        search_query=search_query,
-    )
+    """Legacy gallery URLs retained for compatibility; merged into EDA & Visualization."""
+    return redirect(url_for("eda_visualization"), code=302)
 
 
 @app.route("/outputs/<path:filename>", endpoint="outputs")
@@ -2217,7 +2482,9 @@ def output_file(filename):
     safe_target = resolve_safe_output_path(filename)
     if safe_target is None or not safe_target.exists():
         return "Requested output file not found or access restricted.", 404
-    return send_from_directory(safe_target.parent, safe_target.name)
+    response = send_from_directory(safe_target.parent, safe_target.name)
+    response.headers["Cache-Control"] = "private, max-age=3600"
+    return response
 
 
 
@@ -2229,5 +2496,5 @@ def notebook_file(filename):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5005))
-    app.run(debug=True, port=port)
+    app.run(debug=FLASK_DEBUG, port=port)
 

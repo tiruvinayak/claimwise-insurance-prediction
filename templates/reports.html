@@ -9,7 +9,7 @@
     <div class="page-header">
         <span class="page-label">PROJECT AUDIT & ARTIFACT INVENTORY</span>
         <h1>ClaimWise Reports & Artifact Inventory</h1>
-        <p>Comprehensive system audit, complete 13-model regression benchmark leaderboard, and verified inventory of all {{ all_csvs|length }} CSV data artifacts and {{ all_charts|length }} visualization outputs.</p>
+        <p>Comprehensive system audit, complete {{ kpi_cards.total_models }}-family regression benchmark leaderboard, and verified inventory of all {{ all_csvs|length }} CSV data artifacts and {{ all_charts|length }} visualization outputs.</p>
     </div>
 
     <!-- SUMMARY AUDIT STATS -->
@@ -27,21 +27,36 @@
         <div class="card">
             <h3>Trained Models</h3>
             <div class="stat-value" style="font-size: 26px; color: var(--text-primary);">{{ kpi_cards.total_models }} Algorithms</div>
-            <p>Benchmarked on 10,000 held-out test claims</p>
+            <p>Selected on 7,500 validation claims; final test on 10,000</p>
         </div>
         <div class="card">
             <h3>Production Predictor</h3>
             <div class="stat-value" style="font-size: 18px; color: var(--accent-primary); line-height: 1.3;">{{ kpi_cards.best_model }}</div>
-            <p>Lowest test RMSE (${{ '%.2f'|format(kpi_cards.lowest_rmse) }})</p>
+            <p>Lowest validation MAE ({{ '%.2f'|format(kpi_cards.lowest_mae) }})</p>
         </div>
     </div>
 
+    <!-- FINAL UNTOUCHED TEST RESULT -->
+    {% if final_test_row %}
+    <div class="info-box" style="margin-bottom: 28px;">
+        <p style="margin: 0;">
+            <strong>Final untouched test evaluation:</strong>
+            {{ final_test_row['Model'] }} (config: <code>{{ final_test_row['Config'] }}</code>)
+            refitted on 40,000 train+validation rows and scored once on the 10,000-row test set —
+            MAE {{ '%.2f'|format(final_test_row['MAE']) }},
+            RMSE {{ '%.2f'|format(final_test_row['RMSE']) }},
+            R² {{ '%.4f'|format(final_test_row['R2']) }}.
+            Full artifacts live in <code>Outputs/Final_Model_Evaluation/</code>.
+        </p>
+    </div>
+    {% endif %}
+
     <!-- MODEL BENCHMARK TABLE -->
-    <h2>13-Model Benchmark Leaderboard</h2>
+    <h2>{{ kpi_cards.total_models }}-Family Benchmark Leaderboard</h2>
     {% if model_ready %}
     <div class="table-container" style="margin-bottom: 16px;">
         <table>
-            <caption class="sr-only">Comprehensive evaluation metrics for all thirteen ClaimWise regression algorithms</caption>
+            <caption class="sr-only">Comprehensive validation metrics for all ClaimWise regression model families</caption>
             <thead>
                 <tr>
                     <th scope="col">Rank</th>
@@ -79,8 +94,104 @@
         </table>
     </div>
     <div class="info-box" style="margin-bottom: 32px;">
-        <p style="margin: 0;"><strong>Benchmark Criteria:</strong> Selection is based objectively on out-of-sample RMSE on identical 10,000 test claims (random_state=42), followed by MAE and R² as secondary criteria. No classification accuracy is used for this continuous claim loss problem.</p>
+        <p style="margin: 0;"><strong>Benchmark Criteria:</strong> All {{ kpi_cards.total_models }} families are compared on a 7,500-row validation set carved from training data (seed 2026, stratified by loss decile). The champion is selected by validation MAE, refitted on all 40,000 train+validation rows, and evaluated exactly once on the untouched 10,000-row holdout. The regression leaderboard below uses no classification metrics; a separate high-loss triage classifier is reported in its own section.</p>
     </div>
+    {% endif %}
+
+    <!-- SEPARATE CLASSIFICATION TASK (never mixed into the regression leaderboard) -->
+    {% if classification %}
+    <section id="classification" style="margin-bottom: 40px;">
+        <h2>Separate Classification Task — High-Loss Claim Triage</h2>
+        <div class="info-box" style="margin-bottom: 16px;">
+            <p style="margin: 0;">
+                <strong>This section is deliberately separate from the regression leaderboard above.</strong>
+                It answers a different operational question — <em>which claims are likely to be high severity and need senior manual review?</em> —
+                and its F1 score does <strong>not</strong> measure the accuracy of the continuous loss regression model.
+            </p>
+        </div>
+
+        <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 16px;">
+            <div class="card">
+                <h3>Positive Class</h3>
+                <div class="stat-value" style="font-size: 15px; color: var(--accent-primary); line-height: 1.3;">loss ≥ ${{ '%.2f'|format(classification.threshold) }}</div>
+                <p>High-loss triage flag (upper quartile)</p>
+            </div>
+            <div class="card">
+                <h3>Threshold Source</h3>
+                <div class="stat-value" style="font-size: 13px; color: var(--text-primary); line-height: 1.3;">Train P75 only</div>
+                <p>No validation/holdout leakage</p>
+            </div>
+            <div class="card">
+                <h3>Champion Classifier</h3>
+                <div class="stat-value" style="font-size: 13px; color: var(--accent-primary); line-height: 1.3;">{{ classification.champion }}</div>
+                <p>Selected by validation F1 (binary)</p>
+            </div>
+        </div>
+
+        <div class="table-container" style="margin-bottom: 12px;">
+            <table>
+                <caption class="sr-only">Holdout classification metrics for the high-loss triage classifier</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Metric</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">Definition</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">F1 (binary, positive class = high_loss)</th>
+                        <td style="font-weight: 700; color: var(--accent-primary);">{{ '%.4f'|format(classification.final_holdout_metrics.F1_binary) }}</td>
+                        <td>Harmonic mean of precision and recall for the high-loss class</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Precision</th>
+                        <td>{{ '%.4f'|format(classification.final_holdout_metrics.Precision) }}</td>
+                        <td>Share of flagged claims that truly are high-loss</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Recall</th>
+                        <td>{{ '%.4f'|format(classification.final_holdout_metrics.Recall) }}</td>
+                        <td>Share of true high-loss claims that were flagged</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Accuracy</th>
+                        <td>{{ '%.4f'|format(classification.final_holdout_metrics.Accuracy) }}</td>
+                        <td>Overall holdout correctness (both classes)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">ROC-AUC</th>
+                        <td>{{ '%.4f'|format(classification.final_holdout_metrics.ROC_AUC) }}</td>
+                        <td>Ranking quality across all thresholds</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">PR-AUC (Average Precision)</th>
+                        <td>{{ '%.4f'|format(classification.final_holdout_metrics.PR_AUC) }}</td>
+                        <td>Precision-recall trade-off quality (positive class)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="info-box" style="margin-bottom: 12px;">
+            <p style="margin: 0;">
+                <strong>Confusion matrix on the untouched 10,000-row holdout:</strong>
+                TN {{ classification.final_holdout_metrics.Confusion_TN }},
+                FP {{ classification.final_holdout_metrics.Confusion_FP }},
+                FN {{ classification.final_holdout_metrics.Confusion_FN }},
+                TP {{ classification.final_holdout_metrics.Confusion_TP }}.
+                Full artifacts in <code>Outputs/ClassificationExperiment/</code>;
+                model at <code>Models/high_loss_classifier.pkl</code>.
+            </p>
+        </div>
+
+        <figure class="figure-card">
+            <img src="{{ url_for('outputs', filename='ClassificationExperiment/roc_pr_curves.png') }}"
+                 alt="ROC and Precision-Recall curves for the high-loss triage classifier on the holdout set"
+                 loading="lazy">
+            <figcaption>ROC and Precision-Recall curves — positive class: loss ≥ ${{ '%.2f'|format(classification.threshold) }} (train P75).</figcaption>
+        </figure>
+    </section>
     {% endif %}
 
     <!-- COMPLETE CSV ARTIFACT INVENTORY TABLE -->
@@ -130,6 +241,63 @@
             </tbody>
         </table>
     </div>
+
+    <!-- GROUPED ARTIFACT GALLERY (charts, JSON, logs, reports) -->
+    <h2>Artifact Gallery by Category</h2>
+    <p>Every generated chart, metrics file, metadata record, training log and report discovered dynamically from <code>Outputs/</code>, grouped by experiment category:</p>
+    {% if outputs_summary and outputs_summary.topics %}
+    <div style="margin-bottom: 32px;">
+        {% for topic in outputs_summary.topics %}
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <h3 style="margin: 0;">{{ topic.title }} <span class="status-badge {{ topic.badge_class }}" style="margin-left: 8px;">{{ topic.count }} files</span></h3>
+                <span style="font-size: 12.5px; color: var(--text-muted);">{{ topic.image_count }} charts · {{ topic.csv_count }} CSV</span>
+            </div>
+            <p style="font-size: 13px; margin-bottom: 12px;">{{ topic.description }}</p>
+            <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">File</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Size</th>
+                            <th scope="col">Modified (UTC)</th>
+                            <th scope="col" style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in topic['items'] %}
+                        <tr>
+                            <td style="font-size: 12.5px;">
+                                <strong>{{ item.filename }}</strong>
+                                <div style="font-size: 11px; font-family: monospace; color: var(--text-muted);">{{ item.relative_path }}</div>
+                            </td>
+                            <td><span class="status-badge status-info" style="font-size: 11px;">{{ item.file_type }}</span></td>
+                            <td style="font-size: 12px;">{{ item.size_formatted }}</td>
+                            <td style="font-size: 12px; color: var(--text-muted);">{{ item.modified_utc or '—' }}</td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                {% if item.is_image %}
+                                <a href="/outputs/{{ item.outputs_rel_path }}" target="_blank" rel="noopener" class="btn-preview-sm"><span>🖼️</span> View</a>
+                                {% elif item.is_csv %}
+                                <button type="button" class="btn-preview-sm" onclick="openCsvModal('{{ item.relative_path }}', '{{ item.filename }}')"><span>🔍</span> Preview</button>
+                                <a href="/csv/download/{{ item.relative_path }}" class="btn-download-sm"><span>⬇️</span> Download</a>
+                                {% else %}
+                                <a href="/outputs/{{ item.outputs_rel_path }}" target="_blank" rel="noopener" class="btn-preview-sm"><span>📄</span> Open</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="info-box" style="margin-bottom: 32px;">
+        <p style="margin: 0;">No artifacts have been generated yet. Run the training and analysis pipelines to populate this gallery.</p>
+    </div>
+    {% endif %}
 
     <!-- DATASET & PREPROCESSING TECHNICAL AUDIT -->
     <h2>Technical Dataset & Schema Specifications</h2>

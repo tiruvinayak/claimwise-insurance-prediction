@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}EDA & Visualization | ClaimWise Insurance Prediction{% endblock %}
+
+{% block content %}
+
+<div class="page" id="eda-top">
+
+    <div class="page-header">
+        <span class="page-label">EDA &amp; VISUALIZATION</span>
+        <h1>Exploratory Data Analysis &amp; Visualization Studio</h1>
+        <p>
+            A single verified workspace combining exploratory charts, model evaluation diagnostics,
+            and the complete generated-outputs archive. Every figure below was produced by the real
+            ClaimWise pipeline — {% if overview.available %}{{ '{:,}'.format(overview.rows) }} records ×
+            {{ overview.columns }} columns{% else %}dataset statistics unavailable{% endif %},
+            {{ '{:,}'.format(overview.chart_count) }} charts and
+            {{ '{:,}'.format(overview.artifact_count) }} output files discovered on disk.
+        </p>
+    </div>
+
+    <!-- ======================= SECTION A — EDA OVERVIEW ======================= -->
+    <section id="section-a" class="eda-section" aria-labelledby="section-a-title">
+        <div class="eda-section-head">
+            <span class="page-label">SECTION A</span>
+            <h2 id="section-a-title">EDA Overview</h2>
+            <p>Measured dataset facts and artifact inventory, read live from the project files.</p>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Total Records</span>
+                <span class="kpi-value">{{ '{:,}'.format(overview.rows) if overview.rows is not none else '—' }}</span>
+                <span class="kpi-note">Rows in Dataset/01_raw_claimwise_50000.csv</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Total Columns</span>
+                <span class="kpi-value">{{ overview.columns if overview.columns is not none else '—' }}</span>
+                <span class="kpi-note">id + 116 cat + 14 cont + loss</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Categorical Features</span>
+                <span class="kpi-value">{{ overview.categorical_count if overview.categorical_count is not none else '—' }}</span>
+                <span class="kpi-note">cat1 – cat116 (label-encoded)</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Continuous Features</span>
+                <span class="kpi-value">{{ overview.continuous_count if overview.continuous_count is not none else '—' }}</span>
+                <span class="kpi-note">cont1 – cont14 (standardized)</span>
+            </div>
+            <div class="kpi-card kpi-card-accent">
+                <span class="kpi-label">Target Variable</span>
+                <span class="kpi-value">{{ overview.target }}</span>
+                <span class="kpi-note">Continuous regression target</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Missing Cells</span>
+                <span class="kpi-value">{{ '{:,}'.format(overview.missing_cells) if overview.missing_cells is not none else '—' }}</span>
+                <span class="kpi-note">Computed over the full raw matrix</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Duplicate Rows</span>
+                <span class="kpi-value">{{ '{:,}'.format(overview.duplicate_rows) if overview.duplicate_rows is not none else '—' }}</span>
+                <span class="kpi-note">Exact full-row duplicates</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Visualization Files</span>
+                <span class="kpi-value">{{ '{:,}'.format(overview.chart_count) }}</span>
+                <span class="kpi-note">{{ overview.curated_count }} curated module charts + discovered plots</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Generated Artifacts</span>
+                <span class="kpi-value">{{ '{:,}'.format(overview.artifact_count) }}</span>
+                <span class="kpi-note">{{ overview.csv_count }} CSVs · {{ overview.chart_count }} images · other outputs</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= SECTION E — SEARCH & FILTERS ======================= -->
+    <section id="section-e" class="eda-section" aria-labelledby="section-e-title">
+        <div class="eda-section-head">
+            <span class="page-label">SECTION E</span>
+            <h2 id="section-e-title">Search &amp; Filters</h2>
+            <p>Filters every chart and artifact on this page instantly — no reload required.</p>
+        </div>
+
+        <div class="control-bar" id="artifact-controls">
+            <div class="control-bar-row">
+                <div class="control-search">
+                    <input type="search" id="artifact-search" class="control-input"
+                           placeholder="Search filename, topic, model, or description (e.g. residuals, correlation, cat80)…"
+                           autocomplete="off" aria-label="Search artifacts">
+                </div>
+                <div class="control-count" id="artifact-count" aria-live="polite">
+                    Showing <strong id="artifact-visible-count">{{ items|length }}</strong>
+                    of {{ summary.total_files }} artifacts
+                </div>
+                <button type="button" class="btn btn-secondary" id="artifact-clear">Clear filters</button>
+            </div>
+
+            <div class="control-bar-row control-bar-pills">
+                <span class="pill-label">Type:</span>
+                {% for key, label, count in type_filters %}
+                <button type="button" class="btn-filter-pill {% if key == 'all' %}active{% endif %}"
+                        data-artifact-type="{{ key }}">{{ label }} ({{ count }})</button>
+                {% endfor %}
+            </div>
+
+            <div class="control-bar-pills">
+                <span class="pill-label">Topic:</span>
+                <button type="button" class="btn-filter-pill active" data-artifact-topic="all">All topics</button>
+                {% for t in summary.topics %}
+                <button type="button" class="btn-filter-pill"
+                        data-artifact-topic="{{ t.key }}">{{ t.title }} ({{ t.count }})</button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= SECTION B — EXPLORATORY DATA ANALYSIS ======================= -->
+    <section id="section-b" class="eda-section" aria-labelledby="section-b-title">
+        <div class="eda-section-head">
+            <span class="page-label">SECTION B</span>
+            <h2 id="section-b-title">Exploratory Data Analysis</h2>
+            <p>
+                Target and feature distributions, correlation structure, categorical frequencies,
+                missing-value audits, and outlier analysis — curated modules first, then every
+                discovered exploratory chart.
+            </p>
+        </div>
+
+        <!-- B.1 Curated modules (dataset, preprocessing, EDA) -->
+        {% for mod in modules if mod.number in ['Module 1', 'Module 2', 'Module 3'] %}
+        <div class="viz-module" id="{{ mod.slug }}">
+            <div class="viz-module-head">
+                <div>
+                    <span class="page-label">{{ mod.number | upper }} • {{ mod.section_tag }}</span>
+                    <h3>{{ mod.name }}</h3>
+                    <p>{{ mod.summary }}</p>
+                </div>
+                <span class="status-badge status-ready">{{ mod.visualizations|length }} charts</span>
+            </div>
+
+            {% for viz in mod.visualizations %}
+            <article class="viz-entry" data-artifact
+                     data-type="image" data-topic="eda" data-model=""
+                     data-filename="{{ viz.src.split('/')[-1] | lower }}"
+                     data-desc="{{ (viz.title ~ ' ' ~ viz.concept ~ ' ' ~ viz.what_it_shows ~ ' ' ~ viz.why_useful) | lower }}">
+                <figure class="figure-card viz-entry-figure">
+                    <img src="{{ url_for('outputs', filename=viz.src) }}"
+                         alt="{{ viz.alt }}" loading="lazy"
+                         onerror="markImageMissing(this)">
+                    <figcaption>{{ viz.caption }}</figcaption>
+                </figure>
+                <div class="viz-entry-body">
+                    <div class="viz-entry-topline">
+                        <h4>{{ viz.title }}</h4>
+                        <span class="chart-filename" title="{{ viz.src }}">{{ viz.src }}</span>
+                    </div>
+                    <div class="viz-meta-grid">
+                        <div><span class="viz-meta-label">Analytical concept</span><p>{{ viz.concept }}</p></div>
+                        <div><span class="viz-meta-label">What the graph shows</span><p>{{ viz.what_it_shows }}</p></div>
+                        <div><span class="viz-meta-label">Why it is useful</span><p>{{ viz.why_useful }}</p></div>
+                        <div>
+                            <span class="viz-meta-label">Dataset / model source</span>
+                            <p class="viz-meta-mono">{{ viz.dataset_or_model }}</p>
+                            {% if viz.metric_summary %}
+                            <p class="viz-meta-metric">{{ viz.metric_summary }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="chart-card-actions">
+                        <button type="button" class="btn-preview-sm"
+                                onclick="openImageLightbox('{{ url_for('outputs', filename=viz.src) }}', '{{ viz.title }}')">
+                            <span>🔍</span> Full size
+                        </button>
+                        <a class="btn-download-sm" href="{{ url_for('outputs', filename=viz.src) }}"
+                           download="{{ viz.src.split('/')[-1] }}"><span>⬇️</span> Download</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <!-- B.2 Discovered exploratory charts by topic -->
+        {% set eda_groups = [] %}
+        {% for chart in eda_charts %}
+            {% set ns = namespace(found=false) %}
+            {% for g in eda_groups %}
+                {% if g.title == chart.topic %}{% set ns.found = true %}{% endif %}
+            {% endfor %}
+        {% endfor %}
+        {% set topic_order = ['Exploratory Data Analysis', 'Correlation & Feature Analysis', 'Dataset Inspection'] %}
+        {% for topic_title in topic_order %}
+            {% set group_charts = [] %}
+            {% for chart in eda_charts if chart.topic == topic_title %}
+                {% set _ = group_charts.append(chart) %}
+            {% endfor %}
+            {% if group_charts %}
+            <div class="chart-group">
+                <div class="chart-group-head">
+                    <h3>{{ topic_title }}</h3>
+                    <span class="status-badge status-completed">{{ group_charts|length }} charts</span>
+                </div>
+                <div class="chart-grid">
+                    {% for chart in group_charts %}
+                    <article class="chart-card" data-artifact
+                             data-type="image" data-topic="eda" data-model="{{ chart.model_hint | lower }}"
+                             data-filename="{{ chart.filename | lower }}"
+                             data-desc="{{ (chart.title ~ ' ' ~ chart.description) | lower }}">
+                        <div class="chart-card-img" onclick="openImageLightbox('{{ url_for('outputs', filename=chart.web_src) }}', '{{ chart.filename }}')">
+                            <img src="{{ url_for('outputs', filename=chart.web_src) }}"
+                                 alt="{{ chart.title }}" loading="lazy" onerror="markImageMissing(this)">
+                        </div>
+                        <div class="chart-card-body">
+                            <h4>{{ chart.title }}</h4>
+                            <p>{{ chart.description }}</p>
+                            <div class="chart-card-meta">
+                                <span class="chart-filename" title="{{ chart.web_src }}">{{ chart.web_src }}</span>
+                            </div>
+                            <div class="chart-card-actions">
+                                <button type="button" class="btn-preview-sm"
+                                        onclick="openImageLightbox('{{ url_for('outputs', filename=chart.web_src) }}', '{{ chart.filename }}')">
+                                    <span>🔍</span> Full size
+                                </button>
+                                <a class="btn-download-sm" href="{{ url_for('outputs', filename=chart.web_src) }}"
+                                   download="{{ chart.filename }}"><span>⬇️</span> Download</a>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </section>
+
+    <!-- ======================= SECTION C — MODEL EVALUATION VISUALIZATIONS ======================= -->
+    <section id="section-c" class="eda-section" aria-labelledby="section-c-title">
+        <div class="eda-section-head">
+            <span class="page-label">SECTION C</span>
+            <h2 id="section-c-title">Model Evaluation Visualizations</h2>
+            <p>
+                Actual-versus-predicted scatters, residual diagnostics, error distributions,
+                feature importances, metric comparison charts, and cross-validation results —
+                all produced by the real training pipeline.
+            </p>
+        </div>
+
+        <!-- C.1 Curated modules (model analysis & final evaluation) -->
+        {% for mod in modules if mod.number in ['Module 4', 'Module 5'] %}
+        <div class="viz-module" id="{{ mod.slug }}">
+            <div class="viz-module-head">
+                <div>
+                    <span class="page-label">{{ mod.number | upper }} • {{ mod.section_tag }}</span>
+                    <h3>{{ mod.name }}</h3>
+                    <p>{{ mod.summary }}</p>
+                </div>
+                <span class="status-badge status-ready">{{ mod.visualizations|length }} charts</span>
+            </div>
+
+            {% for viz in mod.visualizations %}
+            <article class="viz-entry" data-artifact
+                     data-type="image" data-topic="model_comparison"
+                     data-model="{{ viz.src.split('/')[0] | lower }}"
+                     data-filename="{{ viz.src.split('/')[-1] | lower }}"
+                     data-desc="{{ (viz.title ~ ' ' ~ viz.concept ~ ' ' ~ viz.what_it_shows) | lower }}">
+                <figure class="figure-card viz-entry-figure">
+                    <img src="{{ url_for('outputs', filename=viz.src) }}"
+                         alt="{{ viz.alt }}" loading="lazy" onerror="markImageMissing(this)">
+                    <figcaption>{{ viz.caption }}</figcaption>
+                </figure>
+                <div class="viz-entry-body">
+                    <div class="viz-entry-topline">
+                        <h4>{{ viz.title }}</h4>
+                        <span class="chart-filename" title="{{ viz.src }}">{{ viz.src }}</span>
+                    </div>
+                    <div class="viz-meta-grid">
+                        <div><span class="viz-meta-label">Analytical concept</span><p>{{ viz.concept }}</p></div>
+                        <div><span class="viz-meta-label">What the graph shows</span><p>{{ viz.what_it_shows }}</p></div>
+                        <div><span class="viz-meta-label">Why it is useful</span><p>{{ viz.why_useful }}</p></div>
+                        <div>
+                            <span class="viz-meta-label">Dataset / model source</span>
+                            <p class="viz-meta-mono">{{ viz.dataset_or_model }}</p>
+                            {% if viz.metric_summary %}
+                            <p class="viz-meta-metric">{{ viz.metric_summary }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="chart-card-actions">
+                        <button type="button" class="btn-preview-sm"
+                                onclick="openImageLightbox('{{ url_for('outputs', filename=viz.src) }}', '{{ viz.title }}')">
+                            <span>🔍</span> Full size
+                        </button>
+                        <a class="btn-download-sm" href="{{ url_for('outputs', filename=viz.src) }}"
+                           download="{{ viz.src.split('/')[-1] }}"><span>⬇️</span> Download</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <!-- C.2 Discovered evaluation charts grouped by model -->
+        {% for group in eval_groups %}
+        <div class="chart-group">
+            <div class="chart-group-head">
+                <h3>{{ group.title }}</h3>
+                <span class="status-badge status-completed">{{ group.charts|length }} charts</span>
+            </div>
+            <div class="chart-grid">
+                {% for chart in group.charts %}
+                <article class="chart-card" data-artifact
+                         data-type="image" data-topic="model_evaluation"
+                         data-model="{{ chart.model_hint | lower }}"
+                         data-filename="{{ chart.filename | lower }}"
+                         data-desc="{{ (chart.title ~ ' ' ~ chart.description) | lower }}">
+                    <div class="chart-card-img" onclick="openImageLightbox('{{ url_for('outputs', filename=chart.web_src) }}', '{{ chart.filename }}')">
+                        <img src="{{ url_for('outputs', filename=chart.web_src) }}"
+                             alt="{{ chart.title }}" loading="lazy" onerror="markImageMissing(this)">
+                    </div>
+                    <div class="chart-card-body">
+                        <h4>{{ chart.title }}</h4>
+                        <p>{{ chart.description }}</p>
+                        <div class="chart-card-meta">
+                            <span class="chart-filename" title="{{ chart.web_src }}">{{ chart.web_src }}</span>
+                        </div>
+                        <div class="chart-card-actions">
+                            <button type="button" class="btn-preview-sm"
+                                    onclick="openImageLightbox('{{ url_for('outputs', filename=chart.web_src) }}', '{{ chart.filename }}')">
+                                <span>🔍</span> Full size
+                            </button>
+                            <a class="btn-download-sm" href="{{ url_for('outputs', filename=chart.web_src) }}"
+                               download="{{ chart.filename }}"><span>⬇️</span> Download</a>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- ======================= SECTION D — GENERATED OUTPUTS GALLERY ======================= -->
+    <section id="section-d" class="eda-section" aria-labelledby="section-d-title">
+        <div class="eda-section-head">
+            <span class="page-label">SECTION D</span>
+            <h2 id="section-d-title">Generated Outputs Gallery</h2>
+            <p>
+                Every file discovered under <code>Outputs/</code> — charts, CSV datasets, JSON
+                metadata, and execution logs — grouped by topic with verified previews and downloads.
+            </p>
+        </div>
+
+        {% for t in summary.topics %}
+        {% set topic_items = [] %}
+        {% for x in items if x.topic_key == t.key %}
+            {% set _ = topic_items.append(x) %}
+        {% endfor %}
+        {% if topic_items %}
+        <section class="gallery-topic-section" data-topic-section="{{ t.key }}">
+            <div class="chart-group-head">
+                <div>
+                    <h3>{{ t.title }}</h3>
+                    <p class="chart-group-desc">{{ t.description }}</p>
+                </div>
+                <span class="status-badge status-ready">{{ topic_items|length }} files</span>
+            </div>
+
+            <div class="gallery-cards-grid">
+                {% for item in topic_items %}
+                <div class="gallery-item-card" data-artifact
+                     data-type="{% if item.is_image %}image{% elif item.is_csv %}csv{% else %}other{% endif %}"
+                     data-topic="{{ item.topic_key }}"
+                     data-model="{{ item.outputs_rel_path.split('/')[0] | lower }}"
+                     data-filename="{{ item.filename | lower }}"
+                     data-desc="{{ (item.description ~ ' ' ~ item.topic ~ ' ' ~ item.outputs_rel_path) | lower }}">
+                    <div class="gallery-card-header">
+                        <div class="gallery-card-badges">
+                            <span class="gallery-type-badge {% if item.is_image %}type-image{% elif item.is_csv %}type-csv{% else %}type-other{% endif %}">{{ item.file_type }}</span>
+                            <span class="gallery-size-badge">{{ item.size_formatted }}</span>
+                        </div>
+                        <h4 class="gallery-file-name" title="{{ item.filename }}"><code>{{ item.filename }}</code></h4>
+                        <div class="gallery-folder-path" title="{{ item.outputs_rel_path }}">📁 {{ item.outputs_rel_path }}</div>
+                    </div>
+
+                    <div class="gallery-card-preview">
+                        {% if item.is_image %}
+                        <div class="gallery-image-wrapper" onclick="openImageLightbox('{{ url_for('outputs', filename=item.web_src) }}', '{{ item.filename }}')">
+                            <img src="{{ url_for('outputs', filename=item.web_src) }}"
+                                 alt="{{ item.filename }}" loading="lazy" onerror="markImageMissing(this)">
+                            <div class="image-hover-overlay"><span>🔍 Click to enlarge</span></div>
+                        </div>
+                        {% elif item.is_csv %}
+                        <button type="button" class="gallery-csv-placeholder"
+                                onclick="openCsvModal('{{ item.relative_path }}', '{{ item.filename }}')">
+                            <span class="gallery-placeholder-icon">📊</span>
+                            <span class="gallery-placeholder-title">CSV tabular dataset</span>
+                            <span class="gallery-placeholder-note">
+                                {% if item.rows is not none %}{{ '{:,}'.format(item.rows) }} rows × {{ item.columns }} columns{% else %}Click to inspect preview{% endif %}
+                            </span>
+                        </button>
+                        {% elif item.is_json %}
+                        <div class="gallery-json-placeholder">
+                            <span class="gallery-placeholder-icon">📋</span>
+                            <span class="gallery-placeholder-title">JSON metadata</span>
+                            <span class="gallery-placeholder-note">Structured model or experiment metadata</span>
+                        </div>
+                        {% else %}
+                        <div class="gallery-generic-placeholder">
+                            <span class="gallery-placeholder-icon">📄</span>
+                            <span class="gallery-placeholder-title">{{ item.file_type }}</span>
+                            <span class="gallery-placeholder-note">Execution log or document output</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="gallery-card-footer">
+                        <p class="gallery-card-desc">{{ item.description }}</p>
+                        <div class="gallery-card-meta">
+                            <span class="meta-badge">{{ item.modified_utc }}</span>
+                        </div>
+                        <div class="gallery-card-actions">
+                            {% if item.is_image %}
+                            <button type="button" class="btn-preview-sm"
+                                    onclick="openImageLightbox('{{ url_for('outputs', filename=item.web_src) }}', '{{ item.filename }}')">
+                                <span>🔍</span> Full size
+                            </button>
+                            <a class="btn-download-sm" href="{{ url_for('outputs', filename=item.web_src) }}"
+                               download="{{ item.filename }}"><span>⬇️</span> Download</a>
+                            {% elif item.is_csv %}
+                            <button type="button" class="btn-preview-sm"
+                                    onclick="openCsvModal('{{ item.relative_path }}', '{{ item.filename }}')">
+                                <span>🔍</span> Preview CSV
+                            </button>
+                            <a class="btn-download-sm" href="/csv/download/{{ item.relative_path }}"><span>⬇️</span> Download</a>
+                            {% else %}
+                            <a class="btn-preview-sm" href="{{ url_for('outputs', filename=item.web_src) }}"
+                               target="_blank" rel="noopener noreferrer"><span>👁️</span> Open file</a>
+                            <a class="btn-download-sm" href="{{ url_for('outputs', filename=item.web_src) }}"
+                               download="{{ item.filename }}"><span>⬇️</span> Download</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        {% endfor %}
+    </section>
+
+    <div id="artifact-empty-state" class="empty-state" style="display: none;">
+        <div class="empty-state-icon">🔍</div>
+        <h3>No matching artifacts</h3>
+        <p>No chart or output file matches the current search and filters.</p>
+        <button type="button" class="btn btn-secondary" onclick="clearArtifactFilters()">Clear all filters</button>
+    </div>
+
+    <div class="info-box" style="margin-top: 32px;">
+        <p style="margin: 0;">
+            <strong>Integrity guarantee:</strong> every image, CSV dimension, and artifact count on this
+            page is discovered from the real <code>Outputs/</code> and <code>Dataset/</code> files at
+            request time. Nothing is fabricated or hard-coded, and missing files render a visible
+            fallback instead of a silent broken image.
+        </p>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('artifact-search');
+    const countEl = document.getElementById('artifact-visible-count');
+    const clearBtn = document.getElementById('artifact-clear');
+    const emptyState = document.getElementById('artifact-empty-state');
+    const typePills = Array.from(document.querySelectorAll('[data-artifact-type]'));
+    const topicPills = Array.from(document.querySelectorAll('[data-artifact-topic]'));
+    const cards = Array.from(document.querySelectorAll('[data-artifact]'));
+    const topicSections = Array.from(document.querySelectorAll('[data-topic-section]'));
+    const totalArtifacts = {{ summary.total_files }};
+
+    let activeType = 'all';
+    let activeTopic = 'all';
+    let query = '';
+
+    function applyArtifactFilters() {
+        let visible = 0;
+        cards.forEach(card => {
+            const type = card.getAttribute('data-type') || 'other';
+            const topic = card.getAttribute('data-topic') || '';
+            const haystack = [
+                card.getAttribute('data-filename') || '',
+                card.getAttribute('data-desc') || '',
+                card.getAttribute('data-model') || '',
+                topic
+            ].join(' ');
+
+            const typeMatch = activeType === 'all'
+                || (activeType === 'other' ? (type !== 'image' && type !== 'csv') : type === activeType);
+            const topicMatch = activeTopic === 'all' || topic === activeTopic;
+            const searchMatch = !query || haystack.includes(query);
+
+            const show = typeMatch && topicMatch && searchMatch;
+            card.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        topicSections.forEach(section => {
+            const key = section.getAttribute('data-topic-section');
+            const anyVisible = Array.from(section.querySelectorAll('[data-artifact]'))
+                .some(c => c.style.display !== 'none');
+            section.style.display = anyVisible ? '' : 'none';
+            if (activeTopic !== 'all' && key !== activeTopic) section.style.display = 'none';
+        });
+
+        if (countEl) countEl.textContent = visible.toLocaleString();
+        if (emptyState) emptyState.style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    window.clearArtifactFilters = function () {
+        activeType = 'all';
+        activeTopic = 'all';
+        query = '';
+        if (searchInput) searchInput.value = '';
+        typePills.forEach(p => p.classList.toggle('active', p.getAttribute('data-artifact-type') === 'all'));
+        topicPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-artifact-topic') === 'all'));
+        applyArtifactFilters();
+    };
+
+    if (searchInput) {
+        let timer = null;
+        searchInput.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                query = this.value.trim().toLowerCase();
+                applyArtifactFilters();
+            }, 180);
+        });
+    }
+    typePills.forEach(pill => pill.addEventListener('click', () => {
+        activeType = pill.getAttribute('data-artifact-type');
+        typePills.forEach(p => p.classList.toggle('active', p === pill));
+        applyArtifactFilters();
+    }));
+    topicPills.forEach(pill => pill.addEventListener('click', () => {
+        activeTopic = pill.getAttribute('data-artifact-topic');
+        topicPills.forEach(p => p.classList.toggle('active', p === pill));
+        applyArtifactFilters();
+    }));
+    if (clearBtn) clearBtn.addEventListener('click', window.clearArtifactFilters);
+
+    window.markImageMissing = function (img) {
+        img.style.display = 'none';
+        const holder = img.parentElement;
+        if (holder && !holder.querySelector('.img-missing-state')) {
+            const note = document.createElement('div');
+            note.className = 'img-missing-state';
+            const name = (img.getAttribute('src') || '').split('/').pop();
+            note.innerHTML = '<strong>Preview unavailable</strong><span>' +
+                name.replace(/</g, '&lt;') + '</span>';
+            holder.appendChild(note);
+        }
+    };
+
+    applyArtifactFilters();
+})();
+</script>
+
+{% endblock %}

@@ -757,3 +757,40 @@ Artifacts: `Outputs/CrossValidation/{regression_5fold,classification_5fold}_{sco
   6. CSV download endpoint security (safe files vs blocked traversal attempts).
   7. Full route availability across all 11 endpoints (`/`, `/dataset`, `/preprocessing`, `/visualization`, `/models`, `/prediction`, `/academic`, `/dashboard`, `/reports`, `/about`).
 
+
+---
+
+## U. Master-Prompt Redesign & Methodology Upgrade (Session 2)
+
+### U.1 Audit findings addressed
+- Navigation did not follow the required eight-page order → restructured to Home, About, Dataset, Preprocessing, Visualization, Models, Prediction, Reports (secondary: Outputs, Academic, Dashboard, Contact).
+- Model selection was contaminated by the test split (champion chosen on test metrics) → replaced with a validation-selected protocol.
+- No hyperparameter tuning existed → added a 71-configuration, two-wave validation search (0 failures).
+- Hard-coded secret key and `debug=True` → env-driven `CLAIMWISE_SECRET_KEY`, `CLAIMWISE_DEBUG`, 20 MB upload cap, logging, output caching, dataset-stats cache.
+- Reports page lacked a grouped artifact gallery → added category-grouped gallery with file type, size, last-modified (UTC) and safe actions.
+
+### U.2 New evaluation protocol (Src/experiment_suite.py + experiment_suite_wave2.py)
+- Split: train 32,500 / validation 7,500 (seed 42, stratified by loss decile, carved from the 40,000-row training partition) / untouched test 10,000 (06_split_X_test.csv).
+- 13 candidates trained; validation-based random search per family; log1p-target experiments for the three strongest tree families (analysis only — production models always predict the original scale).
+- Champion selected by **lowest validation MAE**, refitted on all 40,000 train+validation rows, evaluated **once** on the test set. Atomic promotion with finite-prediction checks; previous artifact backed up to Models/best_model_previous.pkl.
+
+### U.3 Final honest results
+| Stage | Model | MAE | RMSE | R² |
+|---|---|---|---|---|
+| Validation (7,500) | HistGB (lr=0.03, 1500 iter, leaves=31, min_leaf=60, l2=0.5) | 1,231.22 | 2,032.61 | 0.5331 |
+| Validation runner-up | GB (400 est., lr=0.08, depth=3) — best val R² | 1,233.38 | 1,946.26 | 0.5719 |
+| **Final test (10,000)** | **HistGB (champion, refit 40,000)** | **1,216.47** | **1,925.95** | **0.5436** |
+
+- **R² ≥ 0.95 NOT reached** (0.5436). Evidence-based ceiling: target skewness 3.86 with the top 1% of claims dominating variance; every model family plateaus at validation R² 0.50–0.57; log1p experiments improve MAE (1,187.9) but reduce R² (0.5059), confirming the MAE-vs-tail-R² tradeoff inherent to this dataset.
+- Data audit: 0 duplicate feature rows after cleaning; distribution shift between train/validation/test is small (max standardized mean difference ≤ 0.046), ruling out split shift as the limiting factor.
+- Full artifacts: Outputs/ExperimentSuite/ (data_audit.json, tuning_results.csv with 71 configs, validation_metrics.csv, log1p_experiments.csv, final_test_metrics.csv, experiment_metadata.json) and Outputs/Final_Model_Evaluation/ (predictions + 3 diagnostic charts).
+
+### U.4 Website & hardening
+- Reports page: grouped artifact gallery (8 categories, 199 files) with preview/download and modified timestamps; final-test summary box.
+- Home/models/dashboard copy now dynamic (no hard-coded metrics); About page rewritten with loss semantics, anonymized-feature caveats, methodology and responsible-use statements.
+- Hardening: env-driven secret/debug, upload size cap, error handler, immutable-output caching, dataset-stats cache keyed by file mtime.
+
+### U.5 Verification (actually executed)
+- `python -m unittest tests.test_claimwise_system` → **34 tests, all OK** (was 21; added 13 covering nav order, row/column counts, missing-value stats, pipeline load, artifact load, invalid/missing/unseen inputs, metric consistency, report gallery discovery, startup config, 404 for missing artifacts, empty-directory resilience, end-to-end test-row parity).
+- Live server smoke: 12/12 routes HTTP 200; POST /prediction (test row 0) → 3,675.81 predicted vs 3,302.33 actual.
+- 0 failed training configurations across both waves; py_compile clean for app.py and all Src modules touched.

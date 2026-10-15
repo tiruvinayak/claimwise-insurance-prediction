@@ -1,0 +1,40 @@
+{
+  "task": "binary classification \u2014 high-loss claim triage (separate from regression)",
+  "positive_class_definition": "high_loss = 1 when loss >= 3865.98",
+  "threshold": 3865.9825,
+  "threshold_source": "75th percentile of the TRAINING split loss only (no validation/holdout leakage)",
+  "selection_metric": "validation F1 (binary, positive class = high_loss)",
+  "champion": "Hist Gradient Boosting Classifier (class_weight=balanced)",
+  "validation_metrics": {
+    "F1_binary": 0.6858602275365684,
+    "Precision": 0.6048321048321048,
+    "Recall": 0.7919571045576408,
+    "Accuracy": 0.8196,
+    "ROC_AUC": 0.8941364651700523,
+    "PR_AUC": 0.7650533321176415,
+    "Confusion_TN": 4670,
+    "Confusion_FP": 965,
+    "Confusion_FN": 388,
+    "Confusion_TP": 1477
+  },
+  "final_holdout_metrics": {
+    "F1_binary": 0.6837577426015141,
+    "Precision": 0.5995775497887749,
+    "Recall": 0.7954363490792634,
+    "Accuracy": 0.8162,
+    "ROC_AUC": 0.8936354628891061,
+    "PR_AUC": 0.7717150431044691,
+    "Confusion_TN": 6175,
+    "Confusion_FP": 1327,
+    "Confusion_FN": 511,
+    "Confusion_TP": 1987,
+    "Positive_Rate_Pred": 0.3314
+  },
+  "split_protocol": "wave-3 fresh re-split (seed 2026): 32,500 train / 7,500 validation / 10,000 holdout",
+  "class_imbalance_handling": "training-only class weights / sample weights",
+  "trained_utc": "2026-10-15T05:34:24.769590+00:00",
+  "seed": 2026,
+  "wave": 3,
+  "note": "This classifier's F1 measures high-severity claim triage, NOT the accuracy of the continuous loss regression model. The two tasks are reported separately.",
+  "elapsed_seconds": 20.7
+}

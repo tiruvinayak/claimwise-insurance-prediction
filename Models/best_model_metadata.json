@@ -1,0 +1,29 @@
+{
+  "model": "Log1p Target Experiments",
+  "config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
+  "artifact": "Models/best_model.pkl",
+  "feature_contract": "130 preprocessed features from Models/claimwise_preprocessor.pkl",
+  "split_protocol": "wave-3 fresh re-split (seed 2026): 32,500 train / 7,500 validation / 10,000 holdout",
+  "validation_metrics": {
+    "MAE": 1155.6672588881745,
+    "MSE": 3766150.3392460174,
+    "RMSE": 1940.6571926144031,
+    "R2": 0.5275667439531029,
+    "Explained_Variance": 0.5450923633573845,
+    "Median_AE": 685.8155323752417,
+    "MAPE": 48.41485889199234
+  },
+  "final_test_metrics": {
+    "MAE": 1154.9481625927008,
+    "MSE": 4004312.0430051675,
+    "RMSE": 2001.0777203809869,
+    "R2": 0.5395846885157866,
+    "Explained_Variance": 0.5552691581592079,
+    "Median_AE": 672.8553756058258,
+    "MAPE": 49.07134857077383
+  },
+  "trained_utc": "2026-10-15T05:30:40.017753+00:00",
+  "seed": 2026,
+  "wave": 3,
+  "previous_champion_backup": "Models/best_model_pre_wave3.pkl"
+}

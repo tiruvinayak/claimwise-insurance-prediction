@@ -1,0 +1,2 @@
+Classifier,status,fit_seconds,wave,seed,eval_split,F1_binary,Precision,Recall,Accuracy,ROC_AUC,PR_AUC,Confusion_TN,Confusion_FP,Confusion_FN,Confusion_TP,Positive_Rate_Pred
+Hist Gradient Boosting Classifier (class_weight=balanced),ok,8.33,3,2026,holdout (untouched),0.6837577426015141,0.5995775497887749,0.7954363490792634,0.8162,0.8936354628891061,0.7717150431044691,6175,1327,511,1987,0.3314

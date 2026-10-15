@@ -1,0 +1,56 @@
+{
+  "generated_utc": "2026-10-14T17:35:23.393420+00:00",
+  "target": {
+    "train": {
+      "rows": 32500,
+      "mean": 3037.890152923077,
+      "std": 2897.042348908794,
+      "min": 34.26,
+      "p25": 1205.735,
+      "median": 2118.8599999999997,
+      "p75": 3866.2275,
+      "p99": 13725.439199999973,
+      "max": 85923.56
+    },
+    "validation": {
+      "rows": 7500,
+      "mean": 3056.6217573333333,
+      "std": 2974.960738600908,
+      "min": 122.2,
+      "p25": 1203.705,
+      "median": 2118.085,
+      "p75": 3936.9399999999996,
+      "p99": 13987.505100000022,
+      "max": 79623.52
+    },
+    "test": {
+      "rows": 10000,
+      "mean": 3009.448942,
+      "std": 2850.882530228318,
+      "min": 10.0,
+      "p25": 1200.3825000000002,
+      "median": 2107.765,
+      "p75": 3789.6549999999997,
+      "p99": 14395.8006,
+      "max": 37724.85
+    },
+    "skew_train": 3.864449329011061,
+    "excess_kurtosis_train": 45.11050902407264,
+    "top_1pct_share_of_variance": 0.05666212708296741,
+    "top_5pct_share_of_variance": 0.12220846871881312
+  },
+  "duplicate_feature_noise": {
+    "duplicate_groups": 0,
+    "rows_in_duplicate_groups": 0,
+    "groups_with_conflicting_loss": 0,
+    "conflicting_rows": 0,
+    "mean_within_group_abs_diff": 0.0,
+    "mean_within_group_range": 0.0,
+    "share_of_rows_in_duplicate_groups": 0.0
+  },
+  "distribution_shift": {
+    "train_vs_validation_max_abs_smd": 0.035367641585138325,
+    "train_vs_test_max_abs_smd": 0.036561580329244316,
+    "validation_vs_test_max_abs_smd": 0.04615730368970635
+  }
+}

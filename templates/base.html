@@ -9,8 +9,9 @@
     </title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='3d-interactions.js') }}" defer></script>
 </head>
 
 <body>
@@ -18,25 +19,30 @@
 <header class="navbar-header">
     <div class="header-container">
         <a href="/" class="brand-wrapper">
-            <div class="brand-icon">🛡️</div>
+            <div class="brand-icon" aria-hidden="true">CW</div>
             <div class="brand-info">
                 <span class="brand-title">ClaimWise</span>
-                <span class="brand-subtitle">Insurance Prediction System</span>
+                <span class="brand-subtitle">Insurance Claim Loss Prediction</span>
             </div>
         </a>
 
-        <nav class="nav-menu">
-            <a href="/" class="nav-link {% if request.path == '/' or request.path == '/index' %}active{% endif %}">Home</a>
-            <a href="/dataset" class="nav-link {% if request.path.startswith('/dataset') %}active{% endif %}">Dataset</a>
-            <a href="/visualization" class="nav-link {% if request.path == '/visualization' %}active{% endif %}">EDA & Visualizations</a>
-            <a href="/preprocessing" class="nav-link {% if request.path == '/preprocessing' %}active{% endif %}">Preprocessing</a>
-            <a href="/models" class="nav-link {% if request.path == '/models' %}active{% endif %}">Regression Models</a>
-            <a href="/prediction" class="nav-link {% if request.path == '/prediction' %}active{% endif %}">Prediction</a>
-            <a href="/outputs-gallery" class="nav-link {% if request.path.startswith('/outputs-gallery') or request.path.startswith('/gallery') %}active{% endif %}">Project Outputs</a>
-            <a href="/academic" class="nav-link {% if request.path == '/academic' %}active{% endif %}">Academic Analysis</a>
-            <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
-            <a href="/reports" class="nav-link {% if request.path == '/reports' %}active{% endif %}">Reports</a>
+        <button type="button" class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+
+        <nav class="nav-menu" id="navMenu" aria-label="Primary">
+            <a href="/" class="nav-link {% if request.path in ['/', '/index'] %}active{% endif %}">Home</a>
             <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a>
+            <a href="/dataset" class="nav-link {% if request.path.startswith('/dataset') %}active{% endif %}">Dataset</a>
+            <a href="/preprocessing" class="nav-link {% if request.path == '/preprocessing' %}active{% endif %}">Preprocessing</a>
+            <a href="/eda-visualization" class="nav-link {% if request.path in ['/eda-visualization', '/visualization', '/outputs-gallery', '/gallery'] %}active{% endif %}">EDA &amp; Visualization</a>
+            <a href="/models" class="nav-link {% if request.path == '/models' %}active{% endif %}">Models</a>
+            <a href="/prediction" class="nav-link {% if request.path == '/prediction' %}active{% endif %}">Prediction</a>
+            <a href="/reports" class="nav-link {% if request.path == '/reports' %}active{% endif %}">Reports</a>
+            <span class="nav-divider" aria-hidden="true"></span>
+            <a href="/academic" class="nav-link nav-link-secondary {% if request.path == '/academic' %}active{% endif %}">Academic</a>
+            <a href="/dashboard" class="nav-link nav-link-secondary {% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+            <a href="/contact" class="nav-link nav-link-secondary {% if request.path == '/contact' %}active{% endif %}">Contact</a>
         </nav>
     </div>
 </header>
@@ -44,10 +50,10 @@
 <main class="main-content">
     {% with messages = get_flashed_messages() %}
     {% if messages %}
-    <div style="max-width: 1200px; margin: 16px auto 0; padding: 0 20px;">
+    <div class="flash-wrap">
         {% for message in messages %}
-        <div class="info-box" style="border-left-color: var(--error); background: #FFF5F5; margin-bottom: 12px; color: var(--error);">
-            <p style="margin: 0; font-weight: 600;">{{ message }}</p>
+        <div class="info-box flash-message">
+            <p>{{ message }}</p>
         </div>
         {% endfor %}
     </div>
@@ -60,21 +66,20 @@
 <footer class="site-footer">
     <div class="footer-container">
         <div>
-            <div class="footer-brand">ClaimWise <span>Insurance Analytics & ML Platform</span></div>
-            <div class="footer-note">Production Continuous Loss Regression & Academic Data Science Architecture</div>
+            <div class="footer-brand">ClaimWise <span>Insurance Analytics &amp; ML Platform</span></div>
+            <div class="footer-note">Continuous claim-loss regression · Academic data science architecture</div>
         </div>
         <div class="footer-links">
             <a href="/">Home</a>
-            <a href="/dataset">Dataset</a>
-            <a href="/visualization">EDA & Visualizations</a>
-            <a href="/preprocessing">Preprocessing</a>
-            <a href="/models">Regression Models</a>
-            <a href="/prediction">Prediction</a>
-            <a href="/outputs-gallery">Project Outputs</a>
-            <a href="/academic">Academic Analysis</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/reports">Reports</a>
             <a href="/about">About</a>
+            <a href="/dataset">Dataset</a>
+            <a href="/preprocessing">Preprocessing</a>
+            <a href="/eda-visualization">EDA &amp; Visualization</a>
+            <a href="/models">Models</a>
+            <a href="/prediction">Prediction</a>
+            <a href="/reports">Reports</a>
+            <a href="/academic">Academic</a>
+            <a href="/dashboard">Dashboard</a>
         </div>
     </div>
 </footer>
@@ -93,33 +98,30 @@
                     <span>•</span>
                     <span id="csvModalSize">0 KB</span>
                     <span>•</span>
-                    <span id="csvModalPath" style="font-family: monospace; font-size: 11.5px; opacity: 0.85;"></span>
+                    <span id="csvModalPath"></span>
                 </div>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div class="modal-header-actions">
                 <a id="csvModalDownloadBtn" href="#" class="btn-download-sm" title="Download entire CSV file">
-                    <span>⬇️</span> Download File
+                    <span>⬇️</span> Download file
                 </a>
                 <button type="button" class="modal-close-btn" onclick="closeCsvModal()" aria-label="Close modal">✕</button>
             </div>
         </div>
         <div class="modal-toolbar">
             <div class="modal-search-wrap">
-                <span class="modal-search-icon">🔍</span>
-                <input type="text" id="csvModalSearch" class="modal-search-input" placeholder="Filter rows across all columns..." oninput="handleCsvSearch(this.value)">
+                <input type="text" id="csvModalSearch" class="modal-search-input" placeholder="Filter rows across all columns…" oninput="handleCsvSearch(this.value)" aria-label="Filter CSV rows">
             </div>
-            <div style="font-size: 12.5px; color: var(--text-muted);">
-                Showing 20 records per page • Paginated server-side
-            </div>
+            <div class="modal-note">Showing 100 records per page · server-side pagination</div>
         </div>
         <div class="modal-body" id="csvModalBody">
             <div class="modal-loading" id="csvModalLoading">
                 <div class="spinner"></div>
-                <span>Loading artifact preview...</span>
+                <span>Loading artifact preview…</span>
             </div>
-            <div id="csvModalError" style="display: none; padding: 40px; text-align: center; color: var(--error);">
-                <p style="font-weight: 700; margin-bottom: 6px;">Unable to load preview</p>
-                <p id="csvModalErrorMessage" style="font-size: 13px;"></p>
+            <div id="csvModalError" class="modal-error" style="display: none;">
+                <p><strong>Unable to load preview</strong></p>
+                <p id="csvModalErrorMessage"></p>
             </div>
             <div class="modal-table-container" id="csvModalTableContainer" style="display: none;">
                 <table class="modal-table" id="csvModalTable">
@@ -133,40 +135,104 @@
                 Showing 0 to 0 of 0 records
             </div>
             <div class="modal-pagination">
-                <button type="button" class="page-btn" id="csvBtnFirst" onclick="changeCsvPage(1)" title="First Page">« First</button>
-                <button type="button" class="page-btn" id="csvBtnPrev" onclick="changeCsvPage(csvCurrentPage - 1)" title="Previous Page">‹ Prev</button>
-                <span id="csvPageIndicator" style="font-size: 13px; font-weight: 700; padding: 0 10px; color: var(--text-primary);">Page 1 of 1</span>
-                <button type="button" class="page-btn" id="csvBtnNext" onclick="changeCsvPage(csvCurrentPage + 1)" title="Next Page">Next ›</button>
-                <button type="button" class="page-btn" id="csvBtnLast" onclick="changeCsvPage(csvTotalPages)" title="Last Page">Last »</button>
+                <button type="button" class="page-btn" id="csvBtnFirst" onclick="changeCsvPage(1)" title="First page">« First</button>
+                <button type="button" class="page-btn" id="csvBtnPrev" onclick="changeCsvPage(csvCurrentPage - 1)" title="Previous page">‹ Prev</button>
+                <span id="csvPageIndicator" class="ex-page-indicator">Page 1 of 1</span>
+                <button type="button" class="page-btn" id="csvBtnNext" onclick="changeCsvPage(csvCurrentPage + 1)" title="Next page">Next ›</button>
+                <button type="button" class="page-btn" id="csvBtnLast" onclick="changeCsvPage(csvTotalPages)" title="Last page">Last »</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- FULL-SIZE IMAGE LIGHTBOX -->
+<div id="imageLightboxModal" class="image-lightbox-modal" onclick="closeImageLightbox(event)" role="dialog" aria-modal="true" aria-label="Image preview">
+    <div class="image-lightbox-content" onclick="event.stopPropagation()">
+        <div class="image-lightbox-header">
+            <h3 id="lightboxTitle">Image preview</h3>
+            <div class="modal-header-actions">
+                <a id="lightboxDownloadBtn" href="#" download="" class="btn-download-sm"><span>⬇️</span> Download</a>
+                <button type="button" class="lightbox-close-btn" onclick="closeImageLightbox(null)" aria-label="Close image preview">✕</button>
+            </div>
+        </div>
+        <div class="image-lightbox-body">
+            <img id="lightboxImg" src="" alt="Full resolution visualization">
+        </div>
+    </div>
+</div>
+
 <script>
+(function () {
+    const toggle = document.getElementById('navToggle');
+    const menu = document.getElementById('navMenu');
+    if (toggle && menu) {
+        toggle.addEventListener('click', function () {
+            const open = menu.classList.toggle('open');
+            toggle.classList.toggle('open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        menu.querySelectorAll('a').forEach(link => link.addEventListener('click', function () {
+            menu.classList.remove('open');
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }));
+    }
+})();
+
+function openImageLightbox(imgSrc, filename) {
+    const modal = document.getElementById('imageLightboxModal');
+    const img = document.getElementById('lightboxImg');
+    const title = document.getElementById('lightboxTitle');
+    const downloadBtn = document.getElementById('lightboxDownloadBtn');
+    if (!modal || !img) return;
+    img.src = imgSrc;
+    img.alt = filename || 'Visualization preview';
+    if (title) title.textContent = filename || 'Visualization preview';
+    if (downloadBtn) {
+        downloadBtn.href = imgSrc;
+        downloadBtn.setAttribute('download', filename || 'visualization.png');
+    }
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageLightbox(e) {
+    if (e && e.target && e.target.closest && e.target.closest('.image-lightbox-content') && !e.target.classList.contains('lightbox-close-btn')) {
+        return;
+    }
+    const modal = document.getElementById('imageLightboxModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        const img = document.getElementById('lightboxImg');
+        if (img) img.removeAttribute('src');
+    }
+}
+
 let csvCurrentPath = '';
 let csvCurrentPage = 1;
 let csvTotalPages = 1;
 let csvSearchQuery = '';
 let csvSearchTimer = null;
+const CSV_PREVIEW_PAGE_SIZE = 100;
 
 function openCsvModal(relPath, displayName) {
     csvCurrentPath = relPath;
     csvCurrentPage = 1;
     csvSearchQuery = '';
-    
+
     const searchInput = document.getElementById('csvModalSearch');
     if (searchInput) searchInput.value = '';
-    
+
     document.getElementById('csvModalTitle').textContent = displayName || relPath.split('/').pop();
     document.getElementById('csvModalPath').textContent = relPath;
     document.getElementById('csvModalDownloadBtn').href = '/csv/download/' + encodeURI(relPath);
-    
+
     const modal = document.getElementById('csvPreviewModal');
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    
+
     loadCsvData();
 }
 
@@ -196,53 +262,49 @@ function loadCsvData() {
     const loading = document.getElementById('csvModalLoading');
     const tableContainer = document.getElementById('csvModalTableContainer');
     const errorBox = document.getElementById('csvModalError');
-    
+
     loading.style.display = 'flex';
     tableContainer.style.display = 'none';
     errorBox.style.display = 'none';
-    
-    const url = `/csv/preview?path=${encodeURIComponent(csvCurrentPath)}&page=${csvCurrentPage}&page_size=20&search=${encodeURIComponent(csvSearchQuery)}`;
-    
+
+    const url = `/csv/preview?path=${encodeURIComponent(csvCurrentPath)}&page=${csvCurrentPage}&page_size=${CSV_PREVIEW_PAGE_SIZE}&search=${encodeURIComponent(csvSearchQuery)}`;
+
     fetch(url)
         .then(res => res.json())
         .then(data => {
             loading.style.display = 'none';
-            if (data.error) {
+            if (data.error || data.success === false) {
                 errorBox.style.display = 'block';
-                document.getElementById('csvModalErrorMessage').textContent = data.error;
+                document.getElementById('csvModalErrorMessage').textContent = data.error || 'Preview failed.';
                 return;
             }
-            
-            // Meta info
+
             document.getElementById('csvModalShape').textContent = `${data.total_rows.toLocaleString()} rows × ${data.columns.length} columns`;
             document.getElementById('csvModalSize').textContent = data.file_size_formatted || '';
-            
+
             csvTotalPages = data.total_pages || 1;
             csvCurrentPage = data.page || 1;
-            
-            // Pagination controls
+
             document.getElementById('csvPageIndicator').textContent = `Page ${csvCurrentPage} of ${csvTotalPages}`;
             document.getElementById('csvBtnFirst').disabled = (csvCurrentPage <= 1);
             document.getElementById('csvBtnPrev').disabled = (csvCurrentPage <= 1);
             document.getElementById('csvBtnNext').disabled = (csvCurrentPage >= csvTotalPages);
             document.getElementById('csvBtnLast').disabled = (csvCurrentPage >= csvTotalPages);
-            
+
             const startIdx = data.filtered_rows === 0 ? 0 : (csvCurrentPage - 1) * data.page_size + 1;
             const endIdx = Math.min(csvCurrentPage * data.page_size, data.filtered_rows);
-            document.getElementById('csvModalInfo').textContent = 
-                csvSearchQuery 
+            document.getElementById('csvModalInfo').textContent =
+                csvSearchQuery
                     ? `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${data.filtered_rows.toLocaleString()} filtered records (total ${data.total_rows.toLocaleString()})`
                     : `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${data.total_rows.toLocaleString()} records`;
-            
-            // Render table head
+
             const thead = document.getElementById('csvModalTableHead');
-            thead.innerHTML = '<tr><th style="width: 50px;">#</th>' + 
+            thead.innerHTML = '<tr><th class="ex-rownum">#</th>' +
                 data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('') + '</tr>';
-            
-            // Render table body
+
             const tbody = document.getElementById('csvModalTableBody');
             if (!data.rows || data.rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${data.columns.length + 1}" style="text-align: center; padding: 40px; color: var(--text-muted);">No records match your search filter.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${data.columns.length + 1}" class="modal-empty-row">No records match your search filter.</td></tr>`;
             } else {
                 tbody.innerHTML = data.rows.map((row, idx) => {
                     const rowNum = startIdx + idx;
@@ -250,16 +312,16 @@ function loadCsvData() {
                         const val = row[col] !== null && row[col] !== undefined ? String(row[col]) : '';
                         return `<td>${escapeHtml(val)}</td>`;
                     }).join('');
-                    return `<tr><td style="font-weight: 700; color: var(--text-muted);">${rowNum}</td>${colsHtml}</tr>`;
+                    return `<tr><td class="ex-rownum">${rowNum}</td>${colsHtml}</tr>`;
                 }).join('');
             }
-            
+
             tableContainer.style.display = 'block';
         })
-        .catch(err => {
+        .catch(() => {
             loading.style.display = 'none';
             errorBox.style.display = 'block';
-            document.getElementById('csvModalErrorMessage').textContent = 'Network or server error while fetching preview.';
+            document.getElementById('csvModalErrorMessage').textContent = 'Network or server error while fetching the preview.';
         });
 }
 
@@ -273,20 +335,20 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         const modal = document.getElementById('csvPreviewModal');
-        if (modal && modal.classList.contains('active')) {
-            closeCsvModal();
-        }
+        if (modal && modal.classList.contains('active')) closeCsvModal();
+        const lightbox = document.getElementById('imageLightboxModal');
+        if (lightbox && lightbox.classList.contains('active')) closeImageLightbox(null);
     }
 });
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const modal = document.getElementById('csvPreviewModal');
-    if (modal && e.target === modal) {
-        closeCsvModal();
-    }
+    if (modal && e.target === modal) closeCsvModal();
+    const lightbox = document.getElementById('imageLightboxModal');
+    if (lightbox && e.target === lightbox) closeImageLightbox(null);
 });
 </script>
 

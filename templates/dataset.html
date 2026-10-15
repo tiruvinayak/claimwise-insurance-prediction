@@ -7,53 +7,47 @@
     {%- endif -%}
 {%- endmacro %}
 
-{% block title %}Dataset Management | ClaimWise Insurance Prediction{% endblock %}
+{% block title %}Dataset | ClaimWise Insurance Prediction{% endblock %}
 
 {% block content %}
 
 <div class="page">
 
     <div class="page-header">
-        <span class="page-label">DATASET AUDIT & SCHEMA INTEGRITY</span>
-        <h1>Dataset Management & Verification</h1>
-        <p>Inspect the authoritative ClaimWise dataset or upload custom CSV datasets to verify schema and model compatibility before running inferences.</p>
+        <span class="page-label">DATASET EXPLORER &amp; SCHEMA VERIFICATION</span>
+        <h1>Dataset Management &amp; Verification</h1>
+        <p>Inspect the authoritative ClaimWise dataset record by record, audit its schema, and upload custom CSV files to verify model compatibility.</p>
     </div>
 
     <!-- NOTIFICATIONS & MESSAGES -->
     {% if upload_error %}
-    <div class="info-box" style="border-left-color: var(--error); background: #FFF5F5; margin-bottom: 24px;">
-        <p style="color: var(--error); margin: 0;"><strong>Upload / Validation Error:</strong> {{ upload_error }}</p>
+    <div class="info-box error-box" style="margin-bottom: 24px;">
+        <p style="margin: 0;"><strong>Upload / Validation Error:</strong> {{ upload_error }}</p>
     </div>
     {% endif %}
 
     {% if upload_success %}
-    <div class="info-box" style="border-left-color: var(--success); background: var(--success-bg); margin-bottom: 24px;">
-        <p style="color: var(--success); margin: 0;"><strong>Success:</strong> {{ upload_success }}</p>
+    <div class="info-box success-box" style="margin-bottom: 24px;">
+        <p style="margin: 0;"><strong>Success:</strong> {{ upload_success }}</p>
     </div>
     {% endif %}
 
     <!-- ACTIVE MODE STATUS BANNER -->
-    <div class="card" style="margin-bottom: 28px; border-left: 6px solid {% if mode == 'uploaded' %}var(--accent-secondary){% else %}var(--accent-primary){% endif %};">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div class="card mode-banner {% if mode == 'uploaded' %}mode-banner-upload{% else %}mode-banner-raw{% endif %}">
+        <div class="mode-banner-inner">
             <div>
                 <span class="page-label">ACTIVE SYSTEM MODE</span>
                 {% if mode == 'uploaded' %}
-                <h2 style="margin: 0; font-size: 20px;">Mode B — Uploaded Custom Dataset Active</h2>
-                <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-secondary);">
-                    Inspecting uploaded file: <strong>{{ audit.filename }}</strong>. Production dataset in <code>Dataset/</code> remains completely untouched.
-                </p>
+                <h2>Mode B — Uploaded Custom Dataset Active</h2>
+                <p>Inspecting uploaded file: <strong>{{ audit.filename if audit else 'uploaded CSV' }}</strong>. The production dataset in <code>Dataset/</code> remains untouched.</p>
                 {% else %}
-                <h2 style="margin: 0; font-size: 20px;">Mode A — Original ClaimWise Dataset Active</h2>
-                <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-secondary);">
-                    Viewing production baseline from <code>Dataset/01_raw_claimwise_50000.csv</code>. All 130 features and model pipelines are verified.
-                </p>
+                <h2>Mode A — Original ClaimWise Dataset Active</h2>
+                <p>Viewing the production baseline from <code>Dataset/01_raw_claimwise_50000.csv</code>. All 130 model features are verified against this source.</p>
                 {% endif %}
             </div>
             <div>
                 {% if mode == 'uploaded' %}
-                <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary" style="font-size: 13px;">
-                    ↺ Return to Original Dataset (Mode A)
-                </a>
+                <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary">↺ Return to Original Dataset (Mode A)</a>
                 {% else %}
                 <span class="status-badge status-ready">Production Dataset</span>
                 {% endif %}
@@ -62,39 +56,36 @@
     </div>
 
     <!-- UPLOAD SECTION -->
-    <div class="card" style="margin-bottom: 32px; background: var(--card-soft);">
-        <h2 style="margin-top: 0; font-size: 18px;">Upload Dataset (CSV Format)</h2>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
-            Upload a CSV file to inspect its structure, dimensions, data types, missing counts, and check whether it is compatible with the saved ClaimWise regression model (<code>HistGradientBoostingRegressor</code>).
+    <div class="card upload-card">
+        <h2>Upload Dataset (CSV Format)</h2>
+        <p class="section-note">
+            Upload a CSV file to inspect its structure, dimensions, data types, missing counts, and to check
+            whether it is compatible with the saved ClaimWise regression model (<code>HistGradientBoostingRegressor</code>).
         </p>
 
-        <form action="{{ url_for('dataset') }}" method="post" enctype="multipart/form-data" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 260px;">
-                <input type="file" name="file" id="file" accept=".csv" required
-                       style="width: 100%; padding: 10px 14px; background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; color: var(--text-primary);">
-            </div>
-            <button type="submit" class="btn btn-primary" style="padding: 11px 24px;">Upload & Inspect CSV</button>
+        <form action="{{ url_for('dataset') }}" method="post" enctype="multipart/form-data" class="upload-form">
+            <input type="file" name="file" id="file" accept=".csv" required>
+            <button type="submit" class="btn btn-primary">Upload &amp; Inspect CSV</button>
             {% if mode == 'uploaded' %}
-            <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary" style="padding: 11px 18px;">Clear Upload</a>
+            <a href="{{ url_for('dataset_reset') }}" class="btn btn-secondary">Clear Upload</a>
             {% endif %}
         </form>
 
-        <div style="margin-top: 14px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted);">
-            <span>🔒 <strong>Data Isolation:</strong> Files are stored in <code>uploads/</code> sandbox and never overwrite the original dataset.</span>
-            <span>📏 <strong>Max Size:</strong> 50 MB</span>
-            <span>📄 <strong>Supported Encoding:</strong> UTF-8, UTF-8-SIG, Latin-1</span>
+        <div class="upload-notes">
+            <span><strong>Data isolation:</strong> uploads are sandboxed in <code>uploads/</code> and never overwrite the original dataset.</span>
+            <span><strong>Max size:</strong> 20 MB</span>
+            <span><strong>Supported encoding:</strong> UTF-8, UTF-8-SIG, Latin-1</span>
         </div>
     </div>
 
     {% if mode == 'uploaded' and audit %}
     <!-- ==================== MODE B: UPLOADED DATASET DETAILS ==================== -->
 
-    <!-- UPLOADED DATASET SUMMARY STATS -->
     <h2>Uploaded Dataset Specifications</h2>
     <div class="cards cards-4">
         <div class="card">
             <h3>Uploaded Filename</h3>
-            <div class="stat-value" style="font-size: 16px; word-break: break-all; color: var(--accent-primary);">{{ audit.filename }}</div>
+            <div class="stat-value stat-value-sm">{{ audit.filename }}</div>
             <p>File size: {{ audit.filesize_kb }} KB</p>
         </div>
         <div class="card">
@@ -104,14 +95,14 @@
         </div>
         <div class="card">
             <h3>Missing Values</h3>
-            <div class="stat-value" style="color: {% if audit.total_missing > 0 %}var(--error){% else %}var(--success){% endif %};">
+            <div class="stat-value {% if audit.total_missing > 0 %}stat-error{% else %}stat-ok{% endif %}">
                 {{ shown(audit.total_missing, comma=true) }}
             </div>
             <p>{{ audit.missing_pct }}% of all cells ({{ audit.columns_with_missing }} cols affected)</p>
         </div>
         <div class="card">
             <h3>Duplicate Rows</h3>
-            <div class="stat-value" style="color: {% if audit.duplicate_rows > 0 %}var(--accent-secondary){% else %}var(--success){% endif %};">
+            <div class="stat-value {% if audit.duplicate_rows > 0 %}stat-warn{% else %}stat-ok{% endif %}">
                 {{ shown(audit.duplicate_rows, comma=true) }}
             </div>
             <p>Identical rows detected</p>
@@ -120,26 +111,26 @@
 
     <!-- TARGET COLUMN SELECTION -->
     <div class="card" style="margin-top: 24px; margin-bottom: 28px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div class="mode-banner-inner">
             <div>
-                <h3 style="margin-top: 0; font-size: 16px;">Target Column Identification</h3>
-                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">
-                    Current identified target: <strong style="color: var(--accent-primary);">{{ audit.detected_target or 'None' }}</strong>
+                <h3 class="card-title">Target Column Identification</h3>
+                <p class="section-note" style="margin-bottom: 0;">
+                    Current identified target: <strong>{{ audit.detected_target or 'None' }}</strong>
                     {% if audit.has_loss_target %}
-                    <span class="status-badge status-ready" style="margin-left: 8px;">Standard 'loss' Target Found</span>
+                    <span class="status-badge status-ready" style="margin-left: 8px;">Standard 'loss' target found</span>
                     {% else %}
-                    <span class="status-badge status-pending" style="margin-left: 8px;">Custom Target Column</span>
+                    <span class="status-badge status-pending" style="margin-left: 8px;">Custom target column</span>
                     {% endif %}
                 </p>
             </div>
-            <form action="{{ url_for('dataset') }}" method="get" style="display: flex; gap: 8px; align-items: center;">
-                <label for="target_column" style="font-size: 13px; font-weight: 600;">Select Target:</label>
-                <select name="target_column" id="target_column" style="padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: #FFFFFF; font-size: 13px;">
+            <form action="{{ url_for('dataset') }}" method="get" class="inline-form">
+                <label for="target_column">Select target:</label>
+                <select name="target_column" id="target_column" class="form-control">
                     {% for col in audit.column_names %}
                     <option value="{{ col }}" {% if col == audit.detected_target %}selected{% endif %}>{{ col }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-secondary" style="padding: 6px 14px; font-size: 13px;">Update</button>
+                <button type="submit" class="btn btn-secondary">Update</button>
             </form>
         </div>
     </div>
@@ -147,29 +138,28 @@
     <!-- MODEL COMPATIBILITY VERIFICATION SECTION -->
     <h2>Model Schema Compatibility Verification</h2>
     <p>
-        Verifying whether the uploaded CSV can be used directly with the saved ClaimWise regression model (<code>HistGradientBoostingRegressor</code>) and its fitted preprocessing pipeline:
+        Verifying whether the uploaded CSV can be used directly with the saved ClaimWise regression model
+        (<code>HistGradientBoostingRegressor</code>) and its fitted preprocessing pipeline:
     </p>
 
     {% if compatibility %}
-    <div class="card" style="margin-bottom: 24px; border: 2px solid {% if compatibility.is_compatible %}var(--success-border){% else %}#FCA5A5{% endif %}; background: {% if compatibility.is_compatible %}var(--success-bg){% else %}#FEF2F2{% endif %};">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div class="card compatibility-card {% if compatibility.is_compatible %}compat-ok{% else %}compat-bad{% endif %}">
+        <div class="mode-banner-inner">
             <div>
-                <span style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: {% if compatibility.is_compatible %}var(--success){% else %}var(--error){% endif %};">
-                    OVERALL COMPATIBILITY VERDICT
+                <span class="compat-label {% if compatibility.is_compatible %}compat-label-ok{% else %}compat-label-bad{% endif %}">
+                    Overall compatibility verdict
                 </span>
-                <h3 style="margin: 4px 0 0; font-size: 20px; color: {% if compatibility.is_compatible %}var(--success){% else %}var(--error){% endif %};">
-                    {{ compatibility.verdict }}
-                </h3>
+                <h3 class="compat-verdict">{{ compatibility.verdict }}</h3>
             </div>
-            <span class="status-badge {{ compatibility.badge_class }}" style="font-size: 13px; padding: 6px 16px;">
+            <span class="status-badge {{ compatibility.badge_class }}">
                 {% if compatibility.is_compatible %}READY FOR PREDICTION{% else %}INCOMPATIBLE WITH MODEL{% endif %}
             </span>
         </div>
 
         {% if compatibility.incompatibility_reasons %}
-        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(178, 58, 50, 0.2);">
-            <strong style="color: var(--error); font-size: 14px;">Specific Reasons for Incompatibility:</strong>
-            <ul style="margin: 8px 0 0 20px; color: var(--error); font-size: 13.5px;">
+        <div class="compat-reasons">
+            <strong>Specific reasons for incompatibility:</strong>
+            <ul>
                 {% for reason in compatibility.incompatibility_reasons %}
                 <li>{{ reason }}</li>
                 {% endfor %}
@@ -178,7 +168,6 @@
         {% endif %}
     </div>
 
-    <!-- DETAILED CHECKS TABLE -->
     <div class="table-container" style="margin-bottom: 28px;">
         <table>
             <thead>
@@ -200,15 +189,13 @@
                         {% elif chk.status == 'INFO' %}
                         <span class="status-badge status-completed">INFO</span>
                         {% else %}
-                        <span class="status-badge" style="background: #FEE2E2; color: var(--error); border: 1px solid #FCA5A5;">FAILED</span>
+                        <span class="status-badge status-error-badge">FAILED</span>
                         {% endif %}
                     </td>
                     <td>
                         {{ chk.message }}
                         {% if chk.details %}
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-                            Sample affected columns: <code>{{ chk.details|join(', ') }}</code>
-                        </div>
+                        <div class="table-subnote">Sample affected columns: <code>{{ chk.details|join(', ') }}</code></div>
                         {% endif %}
                     </td>
                 </tr>
@@ -218,119 +205,212 @@
     </div>
     {% endif %}
 
-    <!-- EXPLICIT WORKFLOW FOR NEW DATASET TRAINING -->
-    <div class="card" style="margin-bottom: 32px; border-left: 4px solid var(--accent-secondary); background: #FFFDF9;">
-        <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary);">Explicit Workflow for Training on a New Dataset</h3>
-        <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
-            Uploading a dataset <strong>never automatically retrains</strong> the saved production model. Automatic retraining on arbitrary uploads is unsafe. To train models on a new dataset, execute the dedicated pipeline workflow:
+    <div class="info-box" style="margin-bottom: 32px; border-left: 4px solid var(--accent-secondary);">
+        <h3 class="card-title">Explicit Workflow for Training on a New Dataset</h3>
+        <p class="section-note">
+            Uploading a dataset <strong>never automatically retrains</strong> the saved production model. To train
+            models on a new dataset, execute the dedicated pipeline workflow:
         </p>
-        <ol style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; padding-left: 20px;">
-            <li><strong>Data Health Validation:</strong> Audit missing cells, remove duplicate rows, and inspect class frequencies.</li>
-            <li><strong>Feature Preprocessing:</strong> Fit LabelEncoders for categorical columns and StandardScaler for continuous variables exclusively within training splits.</li>
-            <li><strong>Partitioning:</strong> Split the cleaned data into 80% train and 20% test splits using fixed random seed (42).</li>
-            <li><strong>Model Training & CV:</strong> Fit all candidate algorithms (Linear Regression, Decision Tree, Random Forest, Gradient Boosting, Hist Gradient Boosting) with cross-validation.</li>
-            <li><strong>Evaluation & Verification:</strong> Measure MAE, MSE, RMSE, and R² on held-out test data. Confirm tie-breakers before declaring best model.</li>
-            <li><strong>Artifact Preservation:</strong> Save updated model pickle files into <code>Models/</code> and metrics to <code>Outputs/</code>.</li>
+        <ol class="workflow-list">
+            <li><strong>Data health validation:</strong> audit missing cells, remove duplicates, inspect frequencies.</li>
+            <li><strong>Feature preprocessing:</strong> fit encoders and scalers on training splits only.</li>
+            <li><strong>Partitioning:</strong> 80/20 split with fixed random seed (42).</li>
+            <li><strong>Model training &amp; CV:</strong> fit all candidates with cross-validation.</li>
+            <li><strong>Evaluation &amp; verification:</strong> measure MAE, MSE, RMSE and R² on held-out data.</li>
+            <li><strong>Artifact preservation:</strong> save models into <code>Models/</code> and metrics into <code>Outputs/</code>.</li>
         </ol>
-        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
-            Script reference: <code>Src/claimwise_preprocessing_pipeline.py</code> & <code>Src/train_models.py</code>.
-        </p>
+        <p class="section-note" style="margin-bottom: 0;">Script references: <code>Src/claimwise_preprocessing_pipeline.py</code> &amp; <code>Src/train_models.py</code>.</p>
     </div>
+    {% endif %}
 
-    <!-- DATA PREVIEW TABLE -->
-    <h2>Uploaded Data Preview (First 8 Records)</h2>
-    <div class="table-container" style="overflow-x: auto; max-height: 400px; margin-bottom: 32px;">
-        <table>
-            <thead>
-                <tr>
-                    {% for col in audit.column_names[:20] %}
-                    <th scope="col">{{ col }}</th>
-                    {% endfor %}
-                    {% if audit.column_names|length > 20 %}
-                    <th scope="col">... (+{{ audit.column_names|length - 20 }} more)</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in audit.preview_rows %}
-                <tr>
-                    {% for col in audit.column_names[:20] %}
-                    <td>{{ row[col] }}</td>
-                    {% endfor %}
-                    {% if audit.column_names|length > 20 %}
-                    <td>...</td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- ==================== RECORD EXPLORER (MODE A & B) ==================== -->
+    {% if explorer and explorer.success %}
+    <section id="dataset-explorer" class="eda-section" aria-labelledby="explorer-title">
+        <div class="eda-section-head">
+            <span class="page-label">DYNAMIC RECORD EXPLORER</span>
+            <h2 id="explorer-title">
+                {% if mode == 'uploaded' %}Uploaded Records{% else %}Raw Dataset Records{% endif %}
+                — {{ '{:,}'.format(explorer.total_rows) }} rows × {{ explorer.total_columns }} columns
+            </h2>
+            <p>
+                Showing the real values from <code>{{ explorer.relative_path }}</code>
+                ({{ explorer.size_formatted }}). The first 500 records load by default; every remaining
+                record is reachable through server-side pagination — the browser never holds the full dataset.
+            </p>
+        </div>
+
+        <div class="explorer-controls card">
+            <div class="explorer-control-row">
+                <div class="explorer-field explorer-field-grow">
+                    <label for="ex-search">Global search (all columns)</label>
+                    <input type="search" id="ex-search" class="form-control"
+                           placeholder="Search every column, e.g. 12345, A, 0.497721…" autocomplete="off">
+                </div>
+                <div class="explorer-field">
+                    <label for="ex-filter-col">Column filter</label>
+                    <select id="ex-filter-col" class="form-control">
+                        <option value="">— no column filter —</option>
+                        {% for col in explorer.columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="explorer-field explorer-field-sm">
+                    <label for="ex-filter-op">Operator</label>
+                    <select id="ex-filter-op" class="form-control">
+                        <option value="contains">contains</option>
+                        <option value="eq">equals</option>
+                        <option value="ne">not equal to</option>
+                        <option value="gt">greater than</option>
+                        <option value="gte">≥</option>
+                        <option value="lt">less than</option>
+                        <option value="lte">≤</option>
+                    </select>
+                </div>
+                <div class="explorer-field explorer-field-grow">
+                    <label for="ex-filter-value">Filter value</label>
+                    <input type="text" id="ex-filter-value" class="form-control" placeholder="e.g. loss > 80000" autocomplete="off">
+                </div>
+                <div class="explorer-field explorer-field-sm">
+                    <label for="ex-page-size">Records per page</label>
+                    <select id="ex-page-size" class="form-control">
+                        {% for size in page_sizes %}
+                        <option value="{{ size }}" {% if size == default_page_size %}selected{% endif %}>{{ size }} rows</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="explorer-control-row explorer-control-actions">
+                <button type="button" class="btn btn-primary" id="ex-apply">Apply filters</button>
+                <button type="button" class="btn btn-secondary" id="ex-reset">Reset all</button>
+                <span class="explorer-source-note">Source: <code>{{ explorer.filename }}</code></span>
+                <span class="explorer-spacer"></span>
+                <a class="btn btn-secondary" id="ex-download-raw"
+                   href="/csv/download/{{ explorer.relative_path }}">
+                    ⬇️ Download {% if mode == 'uploaded' %}uploaded{% else %}raw{% endif %} CSV (full, {{ '{:,}'.format(explorer.total_rows) }} rows)
+                </a>
+                <a class="btn btn-secondary" id="ex-download-filtered" href="{{ url_for('dataset_export', source=explorer.source) }}" title="Export only the currently filtered/sorted view">
+                    ⬇️ Download current view
+                </a>
+            </div>
+        </div>
+
+        <div class="explorer-info" id="ex-info" aria-live="polite">
+            Loading records…
+        </div>
+
+        <div class="table-container explorer-table-wrap">
+            <div class="explorer-error" id="ex-error" style="display: none;"></div>
+            <table class="explorer-table" id="ex-table">
+                <thead id="ex-head"></thead>
+                <tbody id="ex-body">
+                    <tr><td class="explorer-loading-cell">Loading the first 500 records…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="explorer-pagination">
+            <button type="button" class="page-btn" id="ex-first" title="First page">« First</button>
+            <button type="button" class="page-btn" id="ex-prev" title="Previous page">‹ Prev</button>
+            <span id="ex-page-indicator" class="ex-page-indicator">Page 1 of 1</span>
+            <button type="button" class="page-btn" id="ex-next" title="Next page">Next ›</button>
+            <button type="button" class="page-btn" id="ex-last" title="Last page">Last »</button>
+        </div>
+    </section>
+
+    <!-- ==================== COLUMN STATISTICS ==================== -->
+    {% if column_stats and column_stats.success %}
+    <section id="column-statistics" class="eda-section" aria-labelledby="column-stats-title">
+        <div class="eda-section-head">
+            <span class="page-label">COLUMN STATISTICS</span>
+            <h2 id="column-stats-title">Schema, Missing-Value &amp; Numeric Summary</h2>
+            <p>
+                Measured from the real file: {{ '{:,}'.format(column_stats.rows) }} rows,
+                {{ column_stats.column_count }} columns, {{ '{:,}'.format(column_stats.total_missing) }} missing cells,
+                {{ '{:,}'.format(column_stats.duplicate_rows) }} duplicate rows.
+            </p>
+        </div>
+
+        {% if column_stats.target_summary %}
+        <div class="cards cards-4" style="margin-bottom: 24px;">
+            <div class="card">
+                <h3>Target — mean</h3>
+                <div class="stat-value">{{ '{:,.2f}'.format(column_stats.target_summary.mean) }}</div>
+                <p><code>loss</code> average across {{ '{:,}'.format(column_stats.target_summary.count) }} records</p>
+            </div>
+            <div class="card">
+                <h3>Target — median</h3>
+                <div class="stat-value">{{ '{:,.2f}'.format(column_stats.target_summary.median) }}</div>
+                <p>50th percentile (IQR {{ '{:,.2f}'.format(column_stats.target_summary.q1) }} – {{ '{:,.2f}'.format(column_stats.target_summary.q3) }})</p>
+            </div>
+            <div class="card">
+                <h3>Target — range</h3>
+                <div class="stat-value">{{ '{:,.2f}'.format(column_stats.target_summary.min) }} – {{ '{:,.2f}'.format(column_stats.target_summary.max) }}</div>
+                <p>Minimum to maximum observed claim loss</p>
+            </div>
+            <div class="card">
+                <h3>Target — std deviation</h3>
+                <div class="stat-value">{{ '{:,.2f}'.format(column_stats.target_summary.std) }}</div>
+                <p>Dispersion of the regression target</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <details class="stats-details" {% if column_stats.column_count <= 40 %}open{% endif %}>
+            <summary>Per-column statistics ({{ column_stats.column_count }} columns)</summary>
+            <div class="table-container stats-table-wrap">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Column</th>
+                            <th scope="col">Kind</th>
+                            <th scope="col">Data type</th>
+                            <th scope="col">Non-null</th>
+                            <th scope="col">Missing</th>
+                            <th scope="col">Missing %</th>
+                            <th scope="col">Unique</th>
+                            <th scope="col">Min</th>
+                            <th scope="col">Max</th>
+                            <th scope="col">Mean</th>
+                            <th scope="col">Median</th>
+                            <th scope="col">Std</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for col in column_stats.columns %}
+                        <tr>
+                            <td>{{ col.position }}</td>
+                            <td><code>{{ col.name }}</code></td>
+                            <td><span class="status-badge {% if col.kind == 'target' %}status-pending{% elif col.kind == 'continuous' %}status-ready{% elif col.kind == 'identifier' %}status-info{% else %}status-completed{% endif %}">{{ col.kind }}</span></td>
+                            <td><code>{{ col.dtype }}</code></td>
+                            <td>{{ '{:,}'.format(col.non_null) }}</td>
+                            <td>{{ '{:,}'.format(col.missing) }}</td>
+                            <td>{{ col.missing_pct }}%</td>
+                            <td>{{ '{:,}'.format(col.unique) }}</td>
+                            <td>{{ '%.4f'|format(col.min) if col.min is not none else '—' }}</td>
+                            <td>{{ '%.4f'|format(col.max) if col.max is not none else '—' }}</td>
+                            <td>{{ '%.4f'|format(col.mean) if col.mean is not none else '—' }}</td>
+                            <td>{{ '%.4f'|format(col.median) if col.median is not none else '—' }}</td>
+                            <td>{{ '%.4f'|format(col.std) if col.std is not none else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </section>
+    {% endif %}
+    {% elif mode == 'original' %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📁</div>
+        <h3>Dataset explorer unavailable</h3>
+        <p>{{ explorer.error if explorer else 'The raw dataset file could not be located.' }}</p>
     </div>
+    {% endif %}
 
-    <!-- COLUMN SCHEMA TABLE -->
-    <h2>Column Schema & Data Types Breakdown</h2>
-    <div class="table-container" style="max-height: 480px; overflow-y: auto; margin-bottom: 32px;">
-        <table>
-            <thead>
-                <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Column Name</th>
-                    <th scope="col">Data Type</th>
-                    <th scope="col">Classification</th>
-                    <th scope="col">Missing Values</th>
-                    <th scope="col">Missing %</th>
-                    <th scope="col">Distinct Values</th>
-                    <th scope="col">Sample Values</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for col in audit.columns_info %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td><code>{{ col.name }}</code></td>
-                    <td><code>{{ col.dtype }}</code></td>
-                    <td>
-                        <span class="status-badge {% if col.kind == 'numeric' %}status-ready{% else %}status-completed{% endif %}">
-                            {{ col.kind }}
-                        </span>
-                    </td>
-                    <td>{{ col.missing_count }}</td>
-                    <td>{{ col.missing_pct }}%</td>
-                    <td>{{ col.unique_count }}</td>
-                    <td style="font-size: 12px; color: var(--text-muted);">{{ col.sample_values|join(', ') }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    {% else %}
-    <!-- ==================== MODE A: ORIGINAL CLAIMWISE DATASET ==================== -->
-
-    <!-- DATASET STATS GRID -->
-    <div class="cards cards-4">
-        <div class="card">
-            <h3>Dataset Records</h3>
-            <div class="stat-value">{{ shown(stats['raw_rows'], comma=true) }}</div>
-            <p>Verified insurance claims</p>
-        </div>
-        <div class="card">
-            <h3>Original Columns</h3>
-            <div class="stat-value">{{ shown(stats['raw_cols']) }}</div>
-            <p>Raw schema (130 features + id + loss)</p>
-        </div>
-        <div class="card">
-            <h3>Final Columns</h3>
-            <div class="stat-value">{{ shown(stats['final_cols']) }}</div>
-            <p>Post-cleaning schema (id dropped)</p>
-        </div>
-        <div class="card">
-            <h3>Input Predictors (X)</h3>
-            <div class="stat-value">{{ shown(stats['feature_count']) }}</div>
-            <p>116 categorical, 14 continuous</p>
-        </div>
-    </div>
-
-    <!-- SPECIFICATIONS TABLE -->
+    {% if mode == 'original' %}
+    <!-- ==================== MODE A: SPECIFICATIONS ==================== -->
     <h2>Dataset Specifications</h2>
     <div class="table-container">
         <table>
@@ -373,59 +453,41 @@
                     <th scope="row" class="row-header"><strong>Testing Records (20%)</strong></th>
                     <td>{{ shown(stats['test_rows'], comma=true) }} rows in <code>Dataset/06_split_X_test.csv</code></td>
                 </tr>
+                {% if validation %}
                 <tr>
-                    <th scope="row" class="row-header"><strong>Missing Values</strong></th>
-                    <td>{{ shown(stats['missing']) }} (0.00% missing cells verified)</td>
+                    <th scope="row" class="row-header"><strong>Missing Values (raw)</strong></th>
+                    <td>{{ shown(validation.total_missing_cells, comma=true) }} missing cells measured across the raw matrix</td>
                 </tr>
                 <tr>
-                    <th scope="row" class="row-header"><strong>Duplicate Records</strong></th>
-                    <td>{{ shown(stats['duplicates']) }} (0 duplicate rows verified)</td>
+                    <th scope="row" class="row-header"><strong>Duplicate Records (raw)</strong></th>
+                    <td>{{ shown(validation.duplicate_rows, comma=true) }} exact duplicate rows measured in the source file</td>
                 </tr>
+                <tr>
+                    <th scope="row" class="row-header"><strong>Schema Validation</strong></th>
+                    <td>
+                        {% if validation.expected_schema_ok %}
+                        <span class="status-badge status-ready">VERIFIED</span>
+                        Expected columns present: <code>id</code>, <code>cat1</code>–<code>cat116</code>, <code>cont1</code>–<code>cont14</code>, <code>loss</code>
+                        {% else %}
+                        <span class="status-badge status-pending">CHECK ISSUES</span>
+                        {{ validation.issues|join(' ') }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
 
-    <!-- FEATURE COMPOSITION -->
-    <h2>Feature Composition</h2>
-    <div class="cards cards-4">
-        <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">🏷️</div>
-            <h3>Binary Categoricals</h3>
-            <div class="stat-value">73 columns</div>
-            <p>Columns with exactly 2 categories, encoded via <code>LabelEncoder</code>.</p>
-        </div>
-
-        <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">🏷️</div>
-            <h3>Multi-level Categoricals</h3>
-            <div class="stat-value">43 columns</div>
-            <p>Columns with 3 to 266 categories (max <code>cat116</code>), label-encoded.</p>
-        </div>
-
-        <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">📏</div>
-            <h3>Continuous Features</h3>
-            <div class="stat-value">{{ shown(stats['continuous_count'] or 14) }} columns</div>
-            <p><code>cont1</code>–<code>cont14</code>, standardised with <code>StandardScaler</code>.</p>
-        </div>
-
-        <div class="card">
-            <div style="font-size: 20px; margin-bottom: 6px;">🎯</div>
-            <h3>Target Variable</h3>
-            <div class="stat-value" style="color: var(--accent-primary);">loss</div>
-            <p>Continuous claim loss (range 10.00 to 85,923.56, mean 3,035.01).</p>
-        </div>
-    </div>
-
     <!-- DATASET CSV ARTIFACTS SECTION -->
     <section class="artifact-section">
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+        <div class="artifact-section-head">
             <div>
                 <span class="page-label">VERIFIED ARTIFACT INVENTORY</span>
-                <h2>Dataset CSV Files & Schema Summaries</h2>
-                <p style="margin: 0;">Interactive data previews, row filtering, and direct downloads for raw and summary datasets:</p>
+                <h2>Dataset CSV Files &amp; Schema Summaries</h2>
+                <p>Interactive previews, row filtering, and direct downloads for raw and derived datasets:</p>
             </div>
-            <span class="status-badge status-completed">{{ dataset_csvs|length }} CSV Files Available</span>
+            <span class="status-badge status-completed">{{ dataset_csvs|length }} CSV files available</span>
         </div>
 
         <div class="artifact-card-grid">
@@ -435,7 +497,7 @@
                     <div class="artifact-header-wrap">
                         <span class="artifact-name">📄 {{ csv.name }}</span>
                     </div>
-                    <div class="artifact-meta-badges" style="margin: 6px 0 8px 0;">
+                    <div class="artifact-meta-badges">
                         <span class="meta-badge">{{ csv.rows|int if csv.rows else 0 }} rows</span>
                         <span class="meta-badge">{{ csv.columns|int if csv.columns else 0 }} cols</span>
                         <span class="meta-badge">{{ csv.size_formatted }}</span>
@@ -457,7 +519,7 @@
 
     <!-- VERIFIED VISUALIZATIONS SECTION -->
     <h2>Verified Dataset Visualizations</h2>
-    <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); margin-bottom: 32px;">
+    <div class="figure-grid">
         {% if target_distribution %}
         <figure class="figure-card">
             <img src="{{ url_for('outputs', filename=target_distribution['src']) }}"
@@ -475,47 +537,236 @@
         {% endif %}
 
         {% for chart in dataset_charts %}
-        {% if chart.relative_path not in [target_distribution['src'] if target_distribution else '', feature_composition_chart['src'] if feature_composition_chart else ''] %}
+        {% if chart.web_src not in [target_distribution['src'] if target_distribution else '', feature_composition_chart['src'] if feature_composition_chart else ''] %}
         <figure class="figure-card">
-            <img src="{{ url_for('outputs', filename=chart.relative_path) }}"
+            <img src="{{ url_for('outputs', filename=chart.web_src) }}"
                  alt="{{ chart.caption }}" loading="lazy">
             <figcaption>{{ chart.caption }}</figcaption>
         </figure>
         {% endif %}
         {% endfor %}
     </div>
-
-    <!-- ORIGINAL DATA PREVIEW -->
-    {% if audit and audit.preview_rows %}
-    <h2>Production Data Preview (First 8 Records)</h2>
-    <div class="table-container" style="overflow-x: auto; max-height: 380px; margin-bottom: 32px;">
-        <table>
-            <thead>
-                <tr>
-                    {% for col in audit.column_names[:18] %}
-                    <th scope="col">{{ col }}</th>
-                    {% endfor %}
-                    <th scope="col">...</th>
-                    <th scope="col">loss (target)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in audit.preview_rows %}
-                <tr>
-                    {% for col in audit.column_names[:18] %}
-                    <td>{{ row[col] }}</td>
-                    {% endfor %}
-                    <td>...</td>
-                    <td style="font-weight: 700; color: var(--accent-primary);">{{ '%.2f'|format(row['loss']) if row['loss'] is defined else '—' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
     {% endif %}
 
 </div>
+
+<script>
+(function () {
+    const state = {
+        source: {{ (explorer.source if explorer and explorer.success else 'raw')|tojson }},
+        page: 1,
+        pageSize: {{ default_page_size if default_page_size else 500 }},
+        totalRows: {{ explorer.total_rows if explorer and explorer.success else 0 }},
+        filteredRows: 0,
+        totalPages: 1,
+        search: '',
+        filterCol: '',
+        filterOp: 'contains',
+        filterValue: '',
+        sortBy: '',
+        sortDir: 'asc'
+    };
+
+    const els = {
+        search: document.getElementById('ex-search'),
+        filterCol: document.getElementById('ex-filter-col'),
+        filterOp: document.getElementById('ex-filter-op'),
+        filterValue: document.getElementById('ex-filter-value'),
+        pageSize: document.getElementById('ex-page-size'),
+        apply: document.getElementById('ex-apply'),
+        reset: document.getElementById('ex-reset'),
+        info: document.getElementById('ex-info'),
+        error: document.getElementById('ex-error'),
+        head: document.getElementById('ex-head'),
+        body: document.getElementById('ex-body'),
+        first: document.getElementById('ex-first'),
+        prev: document.getElementById('ex-prev'),
+        next: document.getElementById('ex-next'),
+        last: document.getElementById('ex-last'),
+        pageIndicator: document.getElementById('ex-page-indicator'),
+        downloadFiltered: document.getElementById('ex-download-filtered')
+    };
+
+    if (!els.body) return;
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function buildExportUrl() {
+        const params = new URLSearchParams({ source: state.source });
+        if (state.search) params.set('search', state.search);
+        if (state.filterCol) {
+            params.set('filter_col', state.filterCol);
+            params.set('filter_op', state.filterOp);
+            params.set('filter_value', state.filterValue);
+        }
+        if (state.sortBy) {
+            params.set('sort_by', state.sortBy);
+            params.set('sort_dir', state.sortDir);
+        }
+        return '/dataset/export?' + params.toString();
+    }
+
+    function renderTable(data) {
+        const columns = data.columns || [];
+        const headRow = ['<tr><th class="ex-rownum">#</th>'];
+        columns.forEach(col => {
+            let arrow = '';
+            if (data.sort_by === col) arrow = data.sort_dir === 'desc' ? ' ▾' : ' ▴';
+            headRow.push(`<th class="ex-sortable" data-col="${escapeHtml(col)}" title="Sort by ${escapeHtml(col)}">${escapeHtml(col)}${arrow}</th>`);
+        });
+        headRow.push('</tr>');
+        els.head.innerHTML = headRow.join('');
+
+        els.head.querySelectorAll('.ex-sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.getAttribute('data-col');
+                if (state.sortBy === col) {
+                    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    state.sortBy = col;
+                    state.sortDir = 'asc';
+                }
+                state.page = 1;
+                loadRecords();
+            });
+        });
+
+        if (!data.rows || data.rows.length === 0) {
+            els.body.innerHTML = `<tr><td class="explorer-loading-cell">No records match the current search and filters.</td></tr>`;
+            return;
+        }
+        const parts = [];
+        data.rows.forEach((row, idx) => {
+            const rowNum = data.start_row + idx;
+            parts.push(`<tr><td class="ex-rownum">${rowNum}</td>`);
+            columns.forEach(col => {
+                parts.push(`<td>${escapeHtml(row[col])}</td>`);
+            });
+            parts.push('</tr>');
+        });
+        els.body.innerHTML = parts.join('');
+    }
+
+    function renderInfo(data) {
+        const filtered = data.filtered_rows;
+        const total = data.total_rows;
+        const isFiltered = data.is_filtered;
+        let text = filtered
+            ? `Showing rows ${data.start_row.toLocaleString()}–${data.end_row.toLocaleString()} of ${filtered.toLocaleString()} records`
+            : 'No records match the current search and filters';
+        if (isFiltered) text += ` (filtered from ${total.toLocaleString()} total)`;
+        const details = [];
+        if (data.search) details.push(`search “${data.search}”`);
+        (data.applied_filters || []).forEach(f => {
+            details.push(`${f.column} ${f.op_label} “${f.value}”`);
+        });
+        if (data.sort_by) details.push(`sorted by ${data.sort_by} (${data.sort_dir})`);
+        if (details.length) text += ' — ' + details.join(' · ');
+        els.info.textContent = text;
+    }
+
+    function renderPagination(data) {
+        state.totalPages = data.total_pages || 1;
+        state.filteredRows = data.filtered_rows;
+        state.totalRows = data.total_rows;
+        els.pageIndicator.textContent = `Page ${data.page} of ${state.totalPages}`;
+        els.first.disabled = data.page <= 1;
+        els.prev.disabled = data.page <= 1;
+        els.next.disabled = data.page >= state.totalPages;
+        els.last.disabled = data.page >= state.totalPages;
+    }
+
+    function loadRecords() {
+        els.error.style.display = 'none';
+        const params = new URLSearchParams({
+            source: state.source,
+            page: state.page,
+            page_size: state.pageSize,
+            search: state.search,
+            filter_col: state.filterCol,
+            filter_op: state.filterOp,
+            filter_value: state.filterValue,
+            sort_by: state.sortBy,
+            sort_dir: state.sortDir
+        });
+        if (els.downloadFiltered) els.downloadFiltered.href = buildExportUrl();
+
+        fetch('/dataset/api/records?' + params.toString())
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (!data.success) {
+                    els.error.style.display = 'block';
+                    els.error.textContent = data.error || 'The record request failed.';
+                    els.info.textContent = 'Records could not be loaded.';
+                    return;
+                }
+                state.page = data.page;
+                renderInfo(data);
+                renderPagination(data);
+                renderTable(data);
+            })
+            .catch(() => {
+                els.error.style.display = 'block';
+                els.error.textContent = 'Network error while loading dataset records.';
+            });
+    }
+
+    function readControls() {
+        state.search = (els.search.value || '').trim();
+        state.filterCol = els.filterCol.value || '';
+        state.filterOp = els.filterOp.value || 'contains';
+        state.filterValue = (els.filterValue.value || '').trim();
+        state.pageSize = parseInt(els.pageSize.value, 10) || {{ default_page_size if default_page_size else 500 }};
+        state.page = 1;
+    }
+
+    let searchTimer = null;
+    if (els.search) {
+        els.search.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                readControls();
+                loadRecords();
+            }, 350);
+        });
+    }
+    [els.filterCol, els.filterOp, els.pageSize].forEach(el => {
+        if (el) el.addEventListener('change', () => { readControls(); loadRecords(); });
+    });
+    if (els.filterValue) {
+        els.filterValue.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { readControls(); loadRecords(); }
+        });
+    }
+    if (els.apply) els.apply.addEventListener('click', () => { readControls(); loadRecords(); });
+    if (els.reset) {
+        els.reset.addEventListener('click', () => {
+            els.search.value = '';
+            els.filterCol.value = '';
+            els.filterOp.value = 'contains';
+            els.filterValue.value = '';
+            els.pageSize.value = String(state.pageSize);
+            state.search = '';
+            state.filterCol = '';
+            state.filterOp = 'contains';
+            state.filterValue = '';
+            state.sortBy = '';
+            state.sortDir = 'asc';
+            state.page = 1;
+            loadRecords();
+        });
+    }
+    els.first.addEventListener('click', () => { state.page = 1; loadRecords(); });
+    els.prev.addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadRecords(); } });
+    els.next.addEventListener('click', () => { if (state.page < state.totalPages) { state.page += 1; loadRecords(); } });
+    els.last.addEventListener('click', () => { state.page = state.totalPages; loadRecords(); });
+
+    loadRecords();
+})();
+</script>
 
 {% endblock %}

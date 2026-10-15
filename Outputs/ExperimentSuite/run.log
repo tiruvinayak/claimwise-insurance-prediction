@@ -1,0 +1,94 @@
+[17:35:23 UTC] === ClaimWise Experiment Suite starting ===
+[17:35:23 UTC] Split protocol -> train (32500, 130), validation (7500, 130), untouched test (10000, 130)
+[17:35:23 UTC] Investigating target distribution, duplicate-feature noise and shift...
+[17:35:23 UTC] Wrote Outputs/ExperimentSuite/data_audit.json
+[17:35:23 UTC] --- Dummy Regressor (Median Baseline): 1 configuration(s) ---
+[17:35:23 UTC] Dummy Regressor (Median Baseline) [default] -> val MAE 1827.59, RMSE 3119.07, R2 -0.0994 (0.0s)
+[17:35:23 UTC] --- Linear Regression: 1 configuration(s) ---
+[17:35:23 UTC] Linear Regression [default] -> val MAE 1339.37, RMSE 2175.02, R2 0.4654 (0.1s)
+[17:35:23 UTC] --- Ridge Regression: 6 configuration(s) ---
+[17:35:23 UTC] Ridge Regression [alpha=0.1] -> val MAE 1339.37, RMSE 2175.02, R2 0.4654 (0.0s)
+[17:35:23 UTC] Ridge Regression [alpha=1.0] -> val MAE 1339.28, RMSE 2174.86, R2 0.4655 (0.0s)
+[17:35:23 UTC] Ridge Regression [alpha=10.0] -> val MAE 1339.03, RMSE 2174.26, R2 0.4658 (0.0s)
+[17:35:23 UTC] Ridge Regression [alpha=100.0] -> val MAE 1341.26, RMSE 2176.62, R2 0.4646 (0.0s)
+[17:35:23 UTC] Ridge Regression [alpha=500.0] -> val MAE 1349.94, RMSE 2187.33, R2 0.4593 (0.0s)
+[17:35:23 UTC] Ridge Regression [alpha=1000.0] -> val MAE 1355.39, RMSE 2195.97, R2 0.4551 (0.0s)
+[17:35:23 UTC] --- Lasso Regression: 5 configuration(s) ---
+[17:35:43 UTC] Lasso Regression [alpha=0.01] -> val MAE 1339.40, RMSE 2175.02, R2 0.4654 (20.0s)
+[17:35:46 UTC] Lasso Regression [alpha=0.1] -> val MAE 1339.21, RMSE 2174.74, R2 0.4655 (3.0s)
+[17:35:47 UTC] Lasso Regression [alpha=0.5] -> val MAE 1338.85, RMSE 2174.24, R2 0.4658 (0.7s)
+[17:35:48 UTC] Lasso Regression [alpha=1.0] -> val MAE 1339.57, RMSE 2175.41, R2 0.4652 (0.7s)
+[17:35:48 UTC] Lasso Regression [alpha=2.0] -> val MAE 1340.54, RMSE 2177.09, R2 0.4644 (0.5s)
+[17:35:48 UTC] --- Elastic Net Regression: 5 configuration(s) ---
+[17:35:48 UTC] Elastic Net Regression [alpha=0.1,l1_ratio=0.2] -> val MAE 1364.96, RMSE 2214.77, R2 0.4457 (0.3s)
+[17:35:49 UTC] Elastic Net Regression [alpha=0.1,l1_ratio=0.5] -> val MAE 1359.94, RMSE 2204.38, R2 0.4509 (0.3s)
+[17:35:49 UTC] Elastic Net Regression [alpha=0.5,l1_ratio=0.5] -> val MAE 1384.42, RMSE 2253.68, R2 0.4260 (0.1s)
+[17:35:49 UTC] Elastic Net Regression [alpha=1.0,l1_ratio=0.5] -> val MAE 1410.39, RMSE 2294.20, R2 0.4052 (0.1s)
+[17:35:49 UTC] Elastic Net Regression [alpha=1.0,l1_ratio=0.8] -> val MAE 1379.63, RMSE 2244.83, R2 0.4305 (0.1s)
+[17:35:49 UTC] --- Support Vector Regression (Linear): 4 configuration(s) ---
+[17:35:49 UTC] Support Vector Regression (Linear) [C=0.1,eps=0.0] -> val MAE 1383.42, RMSE 2480.19, R2 0.3049 (0.2s)
+[17:35:50 UTC] Support Vector Regression (Linear) [C=1.0,eps=0.0] -> val MAE 1306.25, RMSE 2316.97, R2 0.3934 (0.8s)
+[17:35:51 UTC] Support Vector Regression (Linear) [C=1.0,eps=100.0] -> val MAE 1306.47, RMSE 2316.14, R2 0.3938 (1.0s)
+/Users/padaltiruvinayak/Desktop/Credit ML/.venv/lib/python3.14/site-packages/sklearn/svm/_base.py:1295: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+[17:35:58 UTC] Support Vector Regression (Linear) [C=10.0,eps=100.0] -> val MAE 1282.61, RMSE 2272.49, R2 0.4164 (6.8s)
+[17:35:58 UTC] --- Decision Tree Regressor: 4 configuration(s) ---
+[17:35:58 UTC] Decision Tree Regressor [max_depth=None,min_samples_leaf=1] -> val MAE 1790.74, RMSE 2801.83, R2 0.1129 (0.7s)
+[17:35:59 UTC] Decision Tree Regressor [max_depth=12,min_samples_leaf=1] -> val MAE 1432.94, RMSE 2326.44, R2 0.3884 (0.3s)
+[17:35:59 UTC] Decision Tree Regressor [max_depth=16,min_samples_leaf=2] -> val MAE 1535.15, RMSE 2531.02, R2 0.2761 (0.4s)
+[17:36:00 UTC] Decision Tree Regressor [max_depth=20,min_samples_leaf=4] -> val MAE 1587.52, RMSE 2546.59, R2 0.2672 (0.5s)
+[17:36:00 UTC] --- Random Forest Regressor: 5 configuration(s) ---
+[17:36:01 UTC] Random Forest Regressor [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] -> val MAE 1288.94, RMSE 2079.12, R2 0.5115 (1.3s)
+[17:36:03 UTC] Random Forest Regressor [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] -> val MAE 1284.04, RMSE 2092.71, R2 0.5051 (1.4s)
+[17:36:07 UTC] Random Forest Regressor [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] -> val MAE 1279.26, RMSE 2042.45, R2 0.5286 (4.8s)
+[17:36:21 UTC] Random Forest Regressor [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] -> val MAE 1286.92, RMSE 2041.48, R2 0.5290 (13.4s)
+[17:36:28 UTC] Random Forest Regressor [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] -> val MAE 1282.82, RMSE 2024.78, R2 0.5367 (6.5s)
+[17:36:28 UTC] --- Extra Trees Regressor: 5 configuration(s) ---
+[17:36:29 UTC] Extra Trees Regressor [n_estimators=150,max_depth=None,min_samples_leaf=1,max_features=sqrt] -> val MAE 1295.25, RMSE 2140.55, R2 0.4822 (1.4s)
+[17:36:31 UTC] Extra Trees Regressor [n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt] -> val MAE 1285.78, RMSE 2149.55, R2 0.4779 (1.4s)
+[17:36:34 UTC] Extra Trees Regressor [n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5] -> val MAE 1282.74, RMSE 2094.98, R2 0.5040 (3.8s)
+[17:36:45 UTC] Extra Trees Regressor [n_estimators=200,max_depth=24,min_samples_leaf=1,max_features=1.0] -> val MAE 1305.35, RMSE 2100.78, R2 0.5013 (10.8s)
+[17:36:51 UTC] Extra Trees Regressor [n_estimators=250,max_depth=None,min_samples_leaf=1,max_features=0.3] -> val MAE 1292.88, RMSE 2097.57, R2 0.5028 (5.9s)
+[17:36:51 UTC] --- Gradient Boosting Regressor: 6 configuration(s) ---
+[17:37:04 UTC] Gradient Boosting Regressor [n_estimators=150,lr=0.1,max_depth=3,min_samples_leaf=1] -> val MAE 1244.60, RMSE 1957.36, R2 0.5670 (13.1s)
+[17:37:22 UTC] Gradient Boosting Regressor [n_estimators=200,lr=0.05,max_depth=3,min_samples_leaf=3] -> val MAE 1264.70, RMSE 1982.62, R2 0.5558 (17.4s)
+[17:37:51 UTC] Gradient Boosting Regressor [n_estimators=250,lr=0.05,max_depth=4,min_samples_leaf=3] -> val MAE 1238.42, RMSE 1947.86, R2 0.5712 (28.9s)
+[17:38:14 UTC] Gradient Boosting Regressor [n_estimators=200,lr=0.1,max_depth=4,min_samples_leaf=5] -> val MAE 1233.61, RMSE 1956.59, R2 0.5674 (23.0s)
+[17:38:40 UTC] Gradient Boosting Regressor [n_estimators=300,lr=0.03,max_depth=3,min_samples_leaf=10] -> val MAE 1278.20, RMSE 2031.60, R2 0.5336 (26.2s)
+[17:38:57 UTC] Gradient Boosting Regressor [n_estimators=200,lr=0.15,max_depth=3,min_samples_leaf=1] -> val MAE 1234.46, RMSE 1947.83, R2 0.5713 (17.2s)
+[17:38:57 UTC] --- Hist Gradient Boosting Regressor: 12 configuration(s) ---
+[17:39:00 UTC] Hist Gradient Boosting Regressor [lr=0.1,iter=300,leaves=31,min_leaf=20,l2=0.0] -> val MAE 1246.41, RMSE 2057.28, R2 0.5217 (2.3s)
+[17:39:02 UTC] Hist Gradient Boosting Regressor [lr=0.06,iter=400,leaves=31,min_leaf=20,l2=1.0] -> val MAE 1245.94, RMSE 2047.47, R2 0.5263 (2.3s)
+[17:39:05 UTC] Hist Gradient Boosting Regressor [lr=0.1,iter=400,leaves=63,min_leaf=10,l2=0.0] -> val MAE 1247.06, RMSE 2058.84, R2 0.5210 (3.2s)
+[17:39:08 UTC] Hist Gradient Boosting Regressor [lr=0.08,iter=500,leaves=31,min_leaf=20,l2=1.0] -> val MAE 1239.82, RMSE 2052.57, R2 0.5239 (2.8s)
+[17:39:11 UTC] Hist Gradient Boosting Regressor [lr=0.05,iter=600,leaves=15,min_leaf=40,l2=1.0] -> val MAE 1237.64, RMSE 2035.75, R2 0.5317 (3.0s)
+[17:39:13 UTC] Hist Gradient Boosting Regressor [lr=0.12,iter=300,leaves=31,min_leaf=10,l2=0.0] -> val MAE 1243.29, RMSE 2050.92, R2 0.5247 (1.7s)
+[17:39:18 UTC] Hist Gradient Boosting Regressor [lr=0.06,iter=600,leaves=63,min_leaf=20,l2=1.0] -> val MAE 1239.53, RMSE 2041.07, R2 0.5292 (5.6s)
+[17:39:21 UTC] Hist Gradient Boosting Regressor [lr=0.1,iter=300,leaves=15,min_leaf=20,l2=5.0] -> val MAE 1233.94, RMSE 2026.74, R2 0.5358 (2.2s)
+[17:39:24 UTC] Hist Gradient Boosting Regressor [lr=0.08,iter=400,leaves=31,min_leaf=40,l2=1.0] -> val MAE 1238.66, RMSE 2033.67, R2 0.5326 (3.7s)
+[17:39:26 UTC] Hist Gradient Boosting Regressor [lr=0.15,iter=250,leaves=31,min_leaf=20,l2=0.0] -> val MAE 1252.12, RMSE 2074.55, R2 0.5137 (1.6s)
+[17:39:29 UTC] Hist Gradient Boosting Regressor [lr=0.05,iter=800,leaves=31,min_leaf=10,l2=1.0] -> val MAE 1241.43, RMSE 2046.62, R2 0.5267 (3.4s)
+[17:39:34 UTC] Hist Gradient Boosting Regressor [lr=0.1,iter=350,leaves=63,min_leaf=15,l2=0.5] -> val MAE 1250.04, RMSE 2059.90, R2 0.5205 (4.8s)
+[17:39:34 UTC] --- AdaBoost Regressor: 4 configuration(s) ---
+[17:39:45 UTC] AdaBoost Regressor [n_estimators=100,lr=0.1,loss=linear] -> val MAE 1867.83, RMSE 2483.95, R2 0.3028 (10.4s)
+[17:40:01 UTC] AdaBoost Regressor [n_estimators=150,lr=0.05,loss=linear] -> val MAE 1748.79, RMSE 2428.49, R2 0.3335 (15.9s)
+[17:40:11 UTC] AdaBoost Regressor [n_estimators=100,lr=0.1,loss=square] -> val MAE 1684.90, RMSE 2424.10, R2 0.3360 (10.3s)
+[17:40:32 UTC] AdaBoost Regressor [n_estimators=200,lr=0.03,loss=linear] -> val MAE 1701.20, RMSE 2427.79, R2 0.3339 (21.2s)
+[17:40:32 UTC] --- K-Nearest Neighbors Regressor: 4 configuration(s) ---
+[17:40:33 UTC] K-Nearest Neighbors Regressor [k=15,weights=distance] -> val MAE 1735.75, RMSE 2785.95, R2 0.1229 (0.0s)
+[17:40:33 UTC] K-Nearest Neighbors Regressor [k=25,weights=distance] -> val MAE 1742.62, RMSE 2796.93, R2 0.1160 (0.0s)
+[17:40:34 UTC] K-Nearest Neighbors Regressor [k=25,weights=uniform] -> val MAE 1759.24, RMSE 2812.29, R2 0.1063 (0.0s)
+[17:40:34 UTC] K-Nearest Neighbors Regressor [k=40,weights=distance] -> val MAE 1760.13, RMSE 2812.47, R2 0.1061 (0.0s)
+[17:40:35 UTC] Champion by validation MAE: Gradient Boosting Regressor (MAE 1233.61, RMSE 1956.59, R2 0.5674)
+/Users/padaltiruvinayak/Desktop/Credit ML/.venv/lib/python3.14/site-packages/sklearn/svm/_base.py:1295: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+[17:41:27 UTC] Running log1p-target experiments for the strongest tree families...
+[17:41:49 UTC] log1p Gradient Boosting Regressor -> val MAE 1190.54, R2 0.5277 (22.8s)
+[17:41:51 UTC] log1p Hist Gradient Boosting Regressor -> val MAE 1187.95, R2 0.5059 (1.8s)
+[17:41:57 UTC] log1p Random Forest Regressor -> val MAE 1245.90, R2 0.4506 (6.1s)
+[17:41:57 UTC] Refitting champion on train+validation (40000 rows) and evaluating once on the untouched 10000-row test set...
+[17:42:26 UTC] FINAL TEST [Gradient Boosting Regressor] -> MAE 1220.57, RMSE 1934.50, R2 0.5395 (refit 28.2s)
+[17:42:26 UTC] Promoted Gradient Boosting Regressor to Models/best_model.pkl (previous model backed up to best_model_previous.pkl)
+[17:42:28 UTC] Refreshed Model_Comparison/model_comparison.csv (13 models)
+[17:42:28 UTC] Regenerated model_comparison_bar_chart.png (validation metrics)
+[17:42:28 UTC] Suite finished in 425.1s. Champion=Gradient Boosting Regressor; test R2=0.5395

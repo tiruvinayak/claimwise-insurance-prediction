@@ -19,7 +19,7 @@
             <h3 style="color: var(--text-primary); font-size: 15px; margin-bottom: 4px;">Dataset Management</h3>
             <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">50,000 claims · 130 features</p>
         </a>
-        <a href="/visualization" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-secondary); transition: var(--transition);">
+        <a href="/eda-visualization" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-secondary); transition: var(--transition);">
             <div style="font-size: 20px; margin-bottom: 4px;">📊</div>
             <h3 style="color: var(--text-primary); font-size: 15px; margin-bottom: 4px;">EDA & Visualizations</h3>
             <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">Modules 1–5 visual catalog</p>
@@ -130,7 +130,7 @@
                      alt="Model Comparison Bar Chart" style="max-width: 100%; height: auto; border-radius: 4px;" loading="lazy">
             </div>
             <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 0;">
-                Benchmarking all 13 candidate regression models on the 10,000 test observations. Hist Gradient Boosting demonstrates the lowest test RMSE ($1,921.02) and highest R² (0.5459).
+                Benchmarking all 13 candidate regression models on the 7,500-row validation split. {{ best_name or 'The champion' }} has the lowest validation MAE; the final untouched test scores live in Outputs/ExperimentSuite/final_test_metrics.csv.
             </p>
         </div>
 

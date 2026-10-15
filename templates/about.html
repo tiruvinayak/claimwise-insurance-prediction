@@ -29,6 +29,17 @@
         </div>
     </div>
 
+    <!-- THE LOSS TARGET -->
+    <h2>What Does <code>loss</code> Mean?</h2>
+    <div class="info-box">
+        <p style="margin-bottom: 10px;">
+            <code>loss</code> is a <strong>continuous claim-severity value</strong> from the Allstate Claims Severity dataset. On this 50,000-row production subset it ranges from <strong>10.00 to 85,923.56</strong> with a median of about <strong>2,119</strong>. The distribution is strongly right-skewed (skewness ≈ 3.86): most claims are small, while a thin tail of very large claims dominates the variance.
+        </p>
+        <p style="margin-bottom: 0;">
+            The dataset schema does <strong>not</strong> define currency units, and the anonymized feature names (<code>cat1</code>–<code>cat116</code>, <code>cont1</code>–<code>cont14</code>) carry no documented business meanings. ClaimWise never invents interpretations for them.
+        </p>
+    </div>
+
     <!-- OBJECTIVES -->
     <h2>Objectives</h2>
     <div class="info-box">
@@ -37,16 +48,36 @@
             <li>Clean raw dataset by removing redundant identifiers and handling missing values.</li>
             <li>Encode categorical text attributes into numerical representations.</li>
             <li>Standardize continuous numerical attributes for balanced model learning.</li>
-            <li>Split preprocessed dataset into 40,000 training and 10,000 testing subsets.</li>
+            <li>Split preprocessed dataset into 40,000 training and 10,000 testing subsets; carve a 7,500-row validation set from training for model selection.</li>
             <li>Prepare features for regression-based claim loss prediction.</li>
         </ul>
     </div>
 
+    <!-- DATA PREPARATION -->
+    <h2>Data Preparation & Preprocessing</h2>
+    <p>
+        The single authoritative pipeline (<code>Src/claimwise_preprocessing_pipeline.py</code>) removes the identifier column <code>id</code>, deduplicates rows, imputes missing continuous values with training medians and missing categorical values with modes, label-encodes the 116 categorical features, and standardizes the 14 continuous features with a <code>StandardScaler</code> fitted <strong>only on the 40,000 training rows</strong>. The raw dataset is preserved untouched; intermediate stages are written to numbered CSVs under <code>Dataset/</code>.
+    </p>
+
     <!-- MACHINE LEARNING APPROACH -->
     <h2>Machine Learning Approach</h2>
     <p>
-        ClaimWise treats claim loss prediction as a <strong>continuous regression task</strong>. Models are trained on preprocessed predictor matrices (\(X\)) containing 130 features to predict the continuous target variable (<code>loss</code>).
+        ClaimWise treats claim loss prediction as a <strong>continuous regression task</strong>. Models are trained on preprocessed predictor matrices containing 130 features to predict the continuous target variable <code>loss</code>.
     </p>
+    <p>
+        Sixteen model families are benchmarked (Dummy baseline, Linear/Ridge/Lasso/Elastic Net, Linear SVR, Decision Tree, Random Forest, Extra Trees, Gradient Boosting, Hist Gradient Boosting, AdaBoost, K-Nearest Neighbors, XGBoost, CatBoost and log1p-target variants). A 7,500-row validation set carved from training (seed 2026, stratified by loss decile) selects the champion by <strong>lowest validation MAE</strong>; the winner is then refitted on all 40,000 train+validation rows and evaluated <strong>exactly once</strong> on the untouched 10,000-row holdout. Current production result: <strong>holdout MAE $1,154.95, RMSE $2,001.08, R² 0.5396</strong> — an honest figure, not a 0.95 claim. A separate high-loss triage classifier is reported in its own section and its F1 does not measure regression accuracy.
+    </p>
+
+    <!-- PURPOSE & RESPONSIBLE USE -->
+    <h2>Purpose & Responsible Use</h2>
+    <div class="info-box">
+        <ul style="margin-bottom: 0;">
+            <li>This is an <strong>academic analytics demonstration</strong>, not an insurance approval engine, fraud detector, or guaranteed payout calculator.</li>
+            <li>A predicted <code>loss</code> is a statistical estimate of expected claim severity — <strong>not</strong> a settlement, quote, or legal offer.</li>
+            <li>Model performance is limited by anonymized features and heavy target skew; treat outputs as decision-support context only.</li>
+            <li>No customer-identifiable data is used; the dataset is fully anonymized.</li>
+        </ul>
+    </div>
 
     <!-- TWO-COLUMN SECTION: TECH STACK & WHY CLAIMWISE -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px;">
@@ -54,16 +85,16 @@
             <h3 style="color: var(--accent-primary); font-size: 14px; text-transform: uppercase;">Technology Stack</h3>
             <ul style="margin-bottom: 0; padding-left: 18px;">
                 <li><strong>Python</strong> — Core pipeline scripting</li>
-                <li><strong>Pandas & NumPy</strong> — Data manipulation & arrays</li>
-                <li><strong>Scikit-Learn</strong> — Preprocessing & regression models</li>
-                <li><strong>Flask & HTML5/CSS</strong> — Web application framework</li>
+                <li><strong>Pandas &amp; NumPy</strong> — Data manipulation &amp; arrays</li>
+                <li><strong>Scikit-Learn</strong> — Preprocessing &amp; regression models</li>
+                <li><strong>Flask &amp; HTML5/CSS</strong> — Web application framework</li>
             </ul>
         </div>
 
         <div class="card">
             <h3 style="color: var(--accent-primary); font-size: 14px; text-transform: uppercase;">Why ClaimWise?</h3>
             <p style="margin-bottom: 0;">
-                ClaimWise demonstrates how an automated data preprocessing pipeline converts raw, high-dimensional insurance records into clean, standardized matrices ready for regression modeling.
+                ClaimWise demonstrates how an automated data preprocessing pipeline converts raw, high-dimensional insurance records into clean, standardized matrices ready for regression modeling — with leakage-safe evaluation and honest reporting of results.
             </p>
         </div>
     </div>

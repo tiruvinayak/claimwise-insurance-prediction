@@ -1,0 +1,259 @@
+{
+  "generated_utc": "2026-10-14T17:42:28.261435+00:00",
+  "seed": 42,
+  "split_protocol": {
+    "train_rows": 32500,
+    "validation_rows": 7500,
+    "final_refit_rows": 40000,
+    "test_rows": 10000,
+    "validation_carved_from": "Dataset/06_split_X_train.csv (stratified by loss decile)",
+    "test_source": "Dataset/06_split_X_test.csv (untouched until final evaluation)"
+  },
+  "selection": {
+    "primary_metric": "validation MAE (original loss scale)",
+    "champion": "Log1p Target Experiments",
+    "champion_config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
+    "champion_validation_metrics": {
+      "MAE": 1155.6672588881745,
+      "MSE": 3766150.3392460174,
+      "RMSE": 1940.6571926144031,
+      "R2": 0.5275667439531029,
+      "Explained_Variance": 0.5450923633573845,
+      "Median_AE": 685.8155323752417,
+      "MAPE": 48.41485889199234
+    },
+    "incumbent_recipe_retrained_validation_metrics": {
+      "MAE": 1211.873922846939,
+      "MSE": 3686975.593185443,
+      "RMSE": 1920.1498882080648,
+      "R2": 0.5374985787734761,
+      "Explained_Variance": 0.5375023306576523,
+      "Median_AE": 797.6157211757667,
+      "MAPE": 60.00584662091343
+    },
+    "champion_final_holdout_metrics": {
+      "MAE": 1154.9481625927008,
+      "MSE": 4004312.0430051675,
+      "RMSE": 2001.0777203809869,
+      "R2": 0.5395846885157866,
+      "Explained_Variance": 0.5552691581592079,
+      "Median_AE": 672.8553756058258,
+      "MAPE": 49.07134857077383
+    }
+  },
+  "r2_goal_verdict": {
+    "goal_r2": 0.95,
+    "reached": false,
+    "achieved_test_r2": 0.5435676887145713,
+    "statement": "R\u00b2 = 0.5436 on the untouched 10,000-row test set after two validation-selected waves. The 0.95 experimental goal was NOT reached.",
+    "evidence": {
+      "duplicate_feature_rows_with_conflicting_loss": {
+        "duplicate_groups": 0,
+        "rows_in_duplicate_groups": 0,
+        "groups_with_conflicting_loss": 0,
+        "conflicting_rows": 0,
+        "mean_within_group_abs_diff": 0.0,
+        "mean_within_group_range": 0.0,
+        "share_of_rows_in_duplicate_groups": 0.0
+      },
+      "target_skewness_train": 3.864449329011061,
+      "top_1pct_share_of_target_variance": 0.05666212708296741
+    }
+  },
+  "log1p_experiments": [
+    {
+      "Model": "Gradient Boosting Regressor",
+      "Target": "log1p(loss), predictions inverted with expm1",
+      "fit_seconds": 22.76,
+      "MAE": 1190.5387911738,
+      "MSE": 4179626.382434268,
+      "RMSE": 2044.4134568219,
+      "R2": 0.5276837427,
+      "Explained_Variance": 0.5454061704,
+      "Median_AE": 691.3785579453,
+      "MAPE": 49.0506658357
+    },
+    {
+      "Model": "Hist Gradient Boosting Regressor",
+      "Target": "log1p(loss), predictions inverted with expm1",
+      "fit_seconds": 1.8,
+      "MAE": 1187.947612177,
+      "MSE": 4372246.523868166,
+      "RMSE": 2090.9917560498,
+      "R2": 0.5059168152,
+      "Explained_Variance": 0.5242032373,
+      "Median_AE": 701.1856276782,
+      "MAPE": 48.7942501087
+    },
+    {
+      "Model": "Random Forest Regressor",
+      "Target": "log1p(loss), predictions inverted with expm1",
+      "fit_seconds": 6.07,
+      "MAE": 1245.9020250686,
+      "MSE": 4862063.424855896,
+      "RMSE": 2205.008713102,
+      "R2": 0.4505653401,
+      "Explained_Variance": 0.4769006947,
+      "Median_AE": 707.8215399156,
+      "MAPE": 51.0879289313
+    }
+  ],
+  "data_audit_summary": {
+    "generated_utc": "2026-10-14T17:35:23.393420+00:00",
+    "target": {
+      "train": {
+        "rows": 32500,
+        "mean": 3037.890152923077,
+        "std": 2897.042348908794,
+        "min": 34.26,
+        "p25": 1205.735,
+        "median": 2118.8599999999997,
+        "p75": 3866.2275,
+        "p99": 13725.439199999973,
+        "max": 85923.56
+      },
+      "validation": {
+        "rows": 7500,
+        "mean": 3056.6217573333333,
+        "std": 2974.960738600908,
+        "min": 122.2,
+        "p25": 1203.705,
+        "median": 2118.085,
+        "p75": 3936.9399999999996,
+        "p99": 13987.505100000022,
+        "max": 79623.52
+      },
+      "test": {
+        "rows": 10000,
+        "mean": 3009.448942,
+        "std": 2850.882530228318,
+        "min": 10.0,
+        "p25": 1200.3825000000002,
+        "median": 2107.765,
+        "p75": 3789.6549999999997,
+        "p99": 14395.8006,
+        "max": 37724.85
+      },
+      "skew_train": 3.864449329011061,
+      "excess_kurtosis_train": 45.11050902407264,
+      "top_1pct_share_of_variance": 0.05666212708296741,
+      "top_5pct_share_of_variance": 0.12220846871881312
+    },
+    "duplicate_feature_noise": {
+      "duplicate_groups": 0,
+      "rows_in_duplicate_groups": 0,
+      "groups_with_conflicting_loss": 0,
+      "conflicting_rows": 0,
+      "mean_within_group_abs_diff": 0.0,
+      "mean_within_group_range": 0.0,
+      "share_of_rows_in_duplicate_groups": 0.0
+    },
+    "distribution_shift": {
+      "train_vs_validation_max_abs_smd": 0.035367641585138325,
+      "train_vs_test_max_abs_smd": 0.036561580329244316,
+      "validation_vs_test_max_abs_smd": 0.04615730368970635
+    }
+  },
+  "environment": {
+    "python": "3.14.3",
+    "pandas": "3.0.5",
+    "numpy": "2.5.1",
+    "scikit_learn": "1.9.1",
+    "n_jobs": 9
+  },
+  "budgets": {
+    "Dummy Regressor (Median Baseline)": 1,
+    "Linear Regression": 1,
+    "Ridge Regression": 6,
+    "Lasso Regression": 5,
+    "Elastic Net Regression": 5,
+    "Support Vector Regression (Linear)": 4,
+    "Decision Tree Regressor": 4,
+    "Random Forest Regressor": 5,
+    "Extra Trees Regressor": 5,
+    "Gradient Boosting Regressor": 6,
+    "Hist Gradient Boosting Regressor": 12,
+    "AdaBoost Regressor": 4,
+    "K-Nearest Neighbors Regressor": 4
+  },
+  "failed_configs": [],
+  "elapsed_seconds_total": 425.1,
+  "wave2": {
+    "configs_tried": 10,
+    "elapsed_seconds": 256.6,
+    "champion_after_wave2": "Hist Gradient Boosting Regressor",
+    "champion_config": "lr=0.03,iter=1500,leaves=31,min_leaf=60,l2=0.5",
+    "champion_validation_metrics": {
+      "MAE": 1231.2157694745863,
+      "MSE": 4131521.4553168374,
+      "RMSE": 2032.6144384306724,
+      "R2": 0.5331198120718649,
+      "Explained_Variance": 0.5331382035622975,
+      "Median_AE": 818.8930091539846,
+      "MAPE": 59.58565418423623
+    },
+    "champion_final_test_metrics": {
+      "MAE": 1216.4680579486007,
+      "MSE": 3709296.88440524,
+      "RMSE": 1925.953500063083,
+      "R2": 0.5435676887145713,
+      "Explained_Variance": 0.5435702584594667,
+      "Median_AE": 790.0527232285851,
+      "MAPE": 63.62033851158093
+    },
+    "note": "Wave 2 was selected on the validation set only; the untouched test set is scored once per promoted champion for final reporting."
+  },
+  "wave3": {
+    "generated_utc": "2026-10-15T05:30:40.017534+00:00",
+    "seed": 2026,
+    "why_new_split": "The historical seed-42 test split had already been used for model comparison and selection in earlier phases (test-RMSE ranking in Src/model_training_utils.py::write_model_comparison), so it was not a pristine holdout. Wave 3 re-partitions all 50,000 rows with a fresh seed; within wave 3 the holdout is scored exactly once for the promoted champion.",
+    "split_protocol": {
+      "train_rows": 32500,
+      "validation_rows": 7500,
+      "holdout_rows": 10000,
+      "final_refit_rows": 40000,
+      "stratified_by": "loss deciles (pd.qcut, q=10)",
+      "membership_file": "wave3_split_membership.csv"
+    },
+    "configs_tried": 76,
+    "configs_ok": 76,
+    "selection": {
+      "primary_metric": "validation MAE (original loss scale)",
+      "champion": "Log1p Target Experiments",
+      "champion_config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
+      "champion_validation_metrics": {
+        "MAE": 1155.6672588881745,
+        "MSE": 3766150.3392460174,
+        "RMSE": 1940.6571926144031,
+        "R2": 0.5275667439531029,
+        "Explained_Variance": 0.5450923633573845,
+        "Median_AE": 685.8155323752417,
+        "MAPE": 48.41485889199234
+      },
+      "incumbent_recipe_retrained_validation_metrics": {
+        "MAE": 1211.873922846939,
+        "MSE": 3686975.593185443,
+        "RMSE": 1920.1498882080648,
+        "R2": 0.5374985787734761,
+        "Explained_Variance": 0.5375023306576523,
+        "Median_AE": 797.6157211757667,
+        "MAPE": 60.00584662091343
+      },
+      "champion_final_holdout_metrics": {
+        "MAE": 1154.9481625927008,
+        "MSE": 4004312.0430051675,
+        "RMSE": 2001.0777203809869,
+        "R2": 0.5395846885157866,
+        "Explained_Variance": 0.5552691581592079,
+        "Median_AE": 672.8553756058258,
+        "MAPE": 49.07134857077383
+      }
+    },
+    "protocol_notes": [
+      "All learned preprocessing was fitted on training data only (imputation and deduplication were no-ops: the raw file has 0 missing values and 0 duplicate rows; the StandardScaler was fitted on training rows only; label encoders are target-free vocabulary mappings).",
+      "The final holdout was scored exactly once, for the promoted champion, after selection was locked on the validation set.",
+      "log1p-target variants use TransformedTargetRegressor so predictions are inverted with expm1 and every reported metric is on the original loss scale.",
+      "Because the app serves predictions against the new 06_split_X_test.csv holdout file, the promoted model is refitted on the new train+validation rows so demo rows can never be training rows of the served model."
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+[17:49:57 UTC] === Wave-2 targeted search starting ===
+[17:49:57 UTC] Split protocol -> train (32500, 130), validation (7500, 130), untouched test (10000, 130)
+[17:49:57 UTC] --- wave2 Hist Gradient Boosting Regressor: 6 config(s) ---
+[17:50:06 UTC] Hist Gradient Boosting Regressor [lr=0.035,iter=830,leaves=31,min_leaf=50,l2=0.5 (prior champion recipe)] -> val MAE 1235.94, RMSE 2042.21, R2 0.5287 (8.5s)
+[17:50:10 UTC] Hist Gradient Boosting Regressor [lr=0.05,iter=1000,leaves=31,min_leaf=50,l2=0.5] -> val MAE 1236.48, RMSE 2041.66, R2 0.5290 (4.0s)
+[17:50:23 UTC] Hist Gradient Boosting Regressor [lr=0.035,iter=1200,leaves=63,min_leaf=40,l2=0.5] -> val MAE 1233.92, RMSE 2029.49, R2 0.5346 (12.8s)
+[17:50:27 UTC] Hist Gradient Boosting Regressor [lr=0.05,iter=1000,leaves=31,min_leaf=30,l2=1.0] -> val MAE 1233.35, RMSE 2031.15, R2 0.5338 (4.2s)
+[17:50:35 UTC] Hist Gradient Boosting Regressor [lr=0.03,iter=1500,leaves=31,min_leaf=60,l2=0.5] -> val MAE 1231.22, RMSE 2032.61, R2 0.5331 (7.8s)
+[17:50:40 UTC] Hist Gradient Boosting Regressor [lr=0.04,iter=1000,leaves=31,min_leaf=50,l2=2.0] -> val MAE 1236.03, RMSE 2040.84, R2 0.5293 (4.9s)
+[17:50:40 UTC] --- wave2 Gradient Boosting Regressor: 4 config(s) ---
+[17:51:14 UTC] Gradient Boosting Regressor [n_estimators=400,lr=0.05,max_depth=3,min_samples_leaf=1] -> val MAE 1241.09, RMSE 1949.38, R2 0.5706 (34.6s)
+[17:51:36 UTC] Gradient Boosting Regressor [n_estimators=250,lr=0.1,max_depth=3,min_samples_leaf=1] -> val MAE 1236.91, RMSE 1950.23, R2 0.5702 (21.5s)
+[17:52:10 UTC] Gradient Boosting Regressor [n_estimators=400,lr=0.08,max_depth=3,min_samples_leaf=3] -> val MAE 1233.38, RMSE 1946.26, R2 0.5719 (34.4s)
+[17:52:45 UTC] Gradient Boosting Regressor [n_estimators=300,lr=0.07,max_depth=4,min_samples_leaf=5] -> val MAE 1235.08, RMSE 1962.59, R2 0.5647 (34.5s)
+[17:52:45 UTC] Champion after wave 2: Hist Gradient Boosting Regressor [lr=0.03,iter=1500,leaves=31,min_leaf=60,l2=0.5] val MAE 1231.22, R2 0.5331
+/Users/padaltiruvinayak/Desktop/Credit ML/.venv/lib/python3.14/site-packages/sklearn/svm/_base.py:1295: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+[17:54:02 UTC] Final test evaluation for champion: Hist Gradient Boosting Regressor
+[17:54:13 UTC] FINAL TEST [Hist Gradient Boosting Regressor] -> MAE 1216.47, RMSE 1925.95, R2 0.5436
+[17:54:13 UTC] Refreshed Model_Comparison/model_comparison.csv (13 models)
+[17:54:13 UTC] Regenerated model_comparison_bar_chart.png (validation metrics)
+[17:54:13 UTC] Promoted Hist Gradient Boosting Regressor to Models/best_model.pkl (previous model backed up to best_model_previous.pkl)
+[17:54:13 UTC] Wave 2 finished in 256.6s

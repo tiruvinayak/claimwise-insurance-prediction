@@ -6,56 +6,86 @@
 
 <div class="page">
 
-    <!-- TWO-COLUMN HERO SECTION -->
+    <!-- TWO-COLUMN HERO SECTION WITH DISTINCTIVE 3D DETAILS -->
     <div class="hero-two-col">
         <div class="hero-left">
-            <span class="hero-label">PRODUCTION REGRESSION • 130 FEATURES</span>
-            <h1>ClaimWise<br>Insurance Claim<br>Prediction System</h1>
+            <span class="hero-label"><span class="pulse-dot"></span> CONTINUOUS RISK REGRESSION • 130 FEATURES</span>
+            <h1>Understand Risk.<br>Predict Loss.<br><span class="hero-highlight">Make Better Decisions.</span></h1>
             <p class="hero-description">
-                An end-to-end machine learning system that analyzes 130 verified policy and claim features to predict continuous insurance claim loss (<code>loss</code>). Built strictly on actual trained models and empirical data.
+                ClaimWise is a rigorous predictive analytics system analyzing 130 verified policy and claim features to estimate continuous insurance claim loss with empirical accuracy. Built on 50,000 real claims with strict cross-validation and zero data leakage.
             </p>
             <div class="hero-buttons">
-                <a href="/prediction" class="btn btn-primary">Try Prediction ➔</a>
-                <a href="/dataset" class="btn btn-secondary">Dataset Management</a>
-                <a href="/models" class="btn btn-secondary">Model Comparison</a>
-                <a href="/visualization" class="btn btn-secondary">Visualizations</a>
+                <a href="/prediction" class="btn btn-primary btn-hero">Run Loss Prediction ➔</a>
+                <a href="/dataset" class="btn btn-secondary btn-hero">Dataset Management</a>
+            </div>
+            <div class="hero-highlights-row">
+                <div class="hero-highlight-item"><span class="check-icon">✓</span> 50,000 Verified Claims</div>
+                <div class="hero-highlight-item"><span class="check-icon">✓</span> 130 Validated Features</div>
+                <div class="hero-highlight-item"><span class="check-icon">✓</span> 13 Benchmarked Models</div>
             </div>
         </div>
 
         <div class="hero-right">
-            <div class="hero-info-card">
-                <div class="hero-info-header">VERIFIED BEST MODEL SPOTLIGHT</div>
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 13px; font-weight: 700; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.5px;">Rank #1 Best Performer</div>
-                    <h3 style="font-size: 18px; margin: 4px 0 6px; color: var(--text-primary);">Hist Gradient Boosting Regressor</h3>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-                        Histogram-based tree boosting with 3-fold cross-validation early stopping (median 830 iterations).
-                    </p>
+            <div class="hero-3d-stage">
+                <div class="hero-stage-backdrop" aria-hidden="true"></div>
+                
+                <!-- Floating Decorative 3D Chips -->
+                <div class="hero-float-chip hero-float-chip-1" aria-hidden="true">
+                    <span>🏆</span>
+                    <span>Rank #1 Model • {{ best_name or 'HGBR' }}</span>
                 </div>
-                <div class="hero-info-list">
-                    <div class="hero-info-item">
-                        <span>Test RMSE (Lowest)</span>
-                        <strong style="color: var(--text-primary);">1,921.0240</strong>
-                    </div>
-                    <div class="hero-info-item">
-                        <span>R² Score (Highest)</span>
-                        <strong style="color: var(--accent-primary);">0.545901</strong>
-                    </div>
-                    <div class="hero-info-item">
-                        <span>Test MAE</span>
-                        <strong style="color: var(--text-primary);">1,215.2997</strong>
-                    </div>
-                    <div class="hero-info-item">
-                        <span>Evaluation Rows</span>
-                        <strong style="color: var(--text-primary);">10,000 test claims</strong>
-                    </div>
+                <div class="hero-float-chip hero-float-chip-2" aria-hidden="true">
+                    <span>⚡</span>
+                    <span>130 Features • 80:20 Partition</span>
                 </div>
-                <div class="hero-info-footer">
-                    <div>
-                        <span style="color: var(--text-muted); font-size: 12px;">Selection Criterion:</span>
-                        <strong style="color: var(--text-primary); margin-left: 4px; font-size: 12px;">Lowest Test RMSE</strong>
+
+                <div class="hero-info-card tilt-card">
+                    <div class="hero-info-header">
+                        <div class="hero-info-header-title">VERIFIED BEST MODEL SPOTLIGHT</div>
+                        <span class="status-badge status-ready" style="font-size: 11px; padding: 2px 8px;">Active Champion</span>
                     </div>
-                    <span class="status-badge status-ready">Active in Production</span>
+                    {% if best_name and best_metrics %}
+                    <div class="hero-info-body">
+                        <div style="margin-bottom: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">Rank #1 by Validation MAE</div>
+                            <h3 style="font-size: 19px; font-weight: 700; margin: 4px 0 6px; color: var(--text-primary); font-family: var(--font-display);">{{ best_name }}</h3>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                                Selected on a 7,500-row validation split (seed 2026, stratified by loss decile); final model refitted on 40,000 rows and scored once on the untouched 10,000-row holdout.
+                            </p>
+                        </div>
+                        <div class="hero-info-list">
+                            <div class="hero-info-item">
+                                <span>Validation MAE (Lowest)</span>
+                                <strong style="color: var(--text-primary); font-size: 14px;">${{ '%.2f'|format(best_metrics['MAE']) }}</strong>
+                            </div>
+                            <div class="hero-info-item">
+                                <span>Validation R²</span>
+                                <strong style="color: var(--accent); font-size: 14px;">{{ '%.4f'|format(best_metrics['R2']) }}</strong>
+                            </div>
+                            {% if final_test_row %}
+                            <div class="hero-info-item">
+                                <span>Final Test MAE / R²</span>
+                                <strong style="color: var(--text-primary); font-size: 14px;">${{ '%.2f'|format(final_test_row['MAE']) }} / {{ '%.4f'|format(final_test_row['R2']) }}</strong>
+                            </div>
+                            {% endif %}
+                            <div class="hero-info-item">
+                                <span>Evaluation Sample</span>
+                                <strong style="color: var(--text-primary);">7,500 val · 10,000 test claims</strong>
+                            </div>
+                        </div>
+                        <div class="hero-info-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin: 0 -20px -20px;">
+                            <div>
+                                <span style="color: var(--text-muted); font-size: 12px;">Selection Criterion:</span>
+                                <strong style="color: var(--text-primary); margin-left: 4px; font-size: 12px;">Lowest Validation MAE</strong>
+                            </div>
+                            <a href="/models" style="font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none;">View Models ➔</a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="hero-info-body">
+                        <p style="font-size: 13px; color: var(--text-secondary);">Model evaluation artifacts are unavailable. Train the models to populate this spotlight.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -97,7 +127,7 @@
             <h3 style="color: var(--text-primary);">Dataset Management</h3>
             <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Upload CSVs, inspect 130 features, audit data health, and verify model schema compatibility.</p>
         </a>
-        <a href="/visualization" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-secondary);">
+        <a href="/eda-visualization" class="card" style="text-decoration: none; display: block; border-left: 4px solid var(--accent-secondary);">
             <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
             <h3 style="color: var(--text-primary);">Module-wise Visualizations</h3>
             <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 0;">Modules 1 to 5: dataset exploration, preprocessing pipeline, EDA, ML diagnostics, and comparisons.</p>
@@ -256,7 +286,7 @@
                 <img src="{{ url_for('outputs', filename='Model_Comparison/model_comparison_bar_chart.png') }}" alt="Model Comparison Bar Chart" style="max-width: 100%; height: auto; border-radius: 4px;">
             </div>
             <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 0;">
-                Benchmarking all 13 candidate regression models on the 10,000 test observations. Hist Gradient Boosting demonstrates the lowest test RMSE ($1,921.02) and highest R² (0.5459).
+                Benchmarking all 13 candidate regression models on the 7,500-row validation split. {{ best_name or 'The champion' }} has the lowest validation MAE; the final untouched test scores live in Outputs/ExperimentSuite/final_test_metrics.csv.
             </p>
         </div>
 
