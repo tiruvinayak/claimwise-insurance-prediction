@@ -1,0 +1,2 @@
+technique,sample_size,pre_reduction,perplexity,learning_rate,init,iterations,kl_divergence
+t-Distributed Stochastic Neighbor Embedding (t-SNE),2500,PCA (30 components),30.0,auto,pca,1000,1.3966

@@ -1,2 +1,2 @@
 Model,Split,MAE,MSE,RMSE,R2,Explained_Variance,Median_AE,MAPE,Train_Time_Sec,Best_Config
-Random Forest Regressor,Validation,1279.2586777820484,4171602.250511448,2042.4500607142024,0.5285905050368773,0.528590509243571,855.5008685284035,65.23058955406215,4.79,"n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5"
+Random Forest Regressor,"Wave-3 Validation (7,500 rows, seed 2026)",1246.0496539232417,3800573.7767027104,1949.5060340257248,0.5232486007094511,0.5232658300934652,845.4849831454271,65.02360518174093,1.62,"n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt"

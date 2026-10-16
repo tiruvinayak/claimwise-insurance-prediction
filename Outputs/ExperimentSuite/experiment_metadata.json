@@ -11,7 +11,8 @@
   },
   "selection": {
     "primary_metric": "validation MAE (original loss scale)",
-    "champion": "Log1p Target Experiments",
+    "champion": "CatBoost Regressor",
+    "champion_target_transformation": "Log1p",
     "champion_config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
     "champion_validation_metrics": {
       "MAE": 1155.6672588881745,
@@ -219,7 +220,8 @@
     "configs_ok": 76,
     "selection": {
       "primary_metric": "validation MAE (original loss scale)",
-      "champion": "Log1p Target Experiments",
+      "champion": "CatBoost Regressor",
+      "champion_target_transformation": "Log1p",
       "champion_config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
       "champion_validation_metrics": {
         "MAE": 1155.6672588881745,

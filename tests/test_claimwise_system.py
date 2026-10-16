@@ -72,7 +72,6 @@ ALL_EXPECTED_MODELS = [
     "AdaBoost Regressor",
     "XGBoost Regressor",
     "CatBoost Regressor",
-    "Log1p Target Experiments",
 ]
 
 METADATA_PATH = PROJECT_ROOT / "Models" / "best_model_metadata.json"
@@ -268,10 +267,11 @@ class ClaimWiseSystemTests(unittest.TestCase):
     # =========================================================================
 
     def test_model_comparison_file_has_all_families_and_metrics(self):
-        """Outputs/Model_Comparison/model_comparison.csv exists, has all families, 7 metrics, and a flagged champion."""
+        """Outputs/Model_Comparison/model_comparison.csv exists, has all 15 genuine ML families, 7 metrics, and a flagged champion."""
         self.assertTrue(COMPARISON_CSV_PATH.exists())
         df = pd.read_csv(COMPARISON_CSV_PATH)
-        self.assertGreaterEqual(len(df), 16)
+        # 15 algorithm families + the evaluated Blend Ensemble pipeline = 16 rows.
+        self.assertEqual(len(df), 16)
 
         expected_columns = ["Model", "MAE", "MSE", "RMSE", "R2", "Explained_Variance", "Median_AE", "MAPE"]
         for col in expected_columns:
@@ -280,6 +280,19 @@ class ClaimWiseSystemTests(unittest.TestCase):
         models_in_file = list(df["Model"])
         for expected in ALL_EXPECTED_MODELS:
             self.assertIn(expected, models_in_file)
+
+        # The blend pipeline is a real evaluated model and must not be dropped.
+        self.assertIn("Blend Ensemble", models_in_file)
+
+        # "Log1p Target Experiments" is an experiment group, not a standalone
+        # algorithm — its rows fold into the underlying family (log1p config).
+        self.assertNotIn("Log1p Target Experiments", models_in_file)
+        # The three winning log1p configs must surface under their real families.
+        log1p_rows = df[df["Target_Transformation"].astype(str) == "Log1p"]
+        self.assertEqual(set(log1p_rows["Model"]), {
+            "CatBoost Regressor", "XGBoost Regressor",
+            "Hist Gradient Boosting Regressor",
+        })
 
         # Metrics must be finite and plausible (no NaN champions, positive errors).
         ok = df.dropna(subset=["MAE"])
@@ -291,6 +304,8 @@ class ClaimWiseSystemTests(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         best_row = df.sort_values("MAE").iloc[0]
         self.assertEqual(selected.iloc[0]["Model"], best_row["Model"])
+        self.assertEqual(best_row["Model"], "CatBoost Regressor")
+        self.assertEqual(best_row["Target_Transformation"], "Log1p")
 
     def test_final_test_metrics_match_promoted_champion(self):
         """Single untouched-holdout evaluation exists, matches the champion, and is internally consistent."""
@@ -354,13 +369,32 @@ class ClaimWiseSystemTests(unittest.TestCase):
         for model_name in ALL_EXPECTED_MODELS:
             self.assertIn(model_name, content)
 
-        # Check metric headers and definitions
+        # "Log1p Target Experiments" must NOT appear as a standalone ML algorithm
+        self.assertNotIn("<td>Log1p Target Experiments</td>", content)
+        self.assertNotIn("class=\"model-name\">Log1p Target Experiments", content)
+
+        # Champion is CatBoost Regressor with Log1p target transformation
+        self.assertIn("CatBoost Regressor", content)
+        self.assertIn("Log1p", content)
+        self.assertIn("Production Champion", content)
+
+        # Decision Tree Regressor is present with its verified metrics
+        self.assertIn("Decision Tree Regressor", content)
+        self.assertIn("1,432.54", content)  # Decision Tree MAE
+        self.assertIn("0.2973", content)    # Decision Tree R2
+
+        # Check regression metric headers and definitions
         self.assertIn("MAE (Mean Absolute Error)", content)
         self.assertIn("MSE (Mean Squared Error)", content)
         self.assertIn("RMSE (Root Mean Squared Error)", content)
         self.assertIn("R² (Coefficient of Determination)", content)
         self.assertIn("Median AE (Median Absolute Error)", content)
         self.assertIn("Five Primary Regression Algorithms", content)
+
+        # Separate classification section exists with classification-only metrics
+        self.assertIn("High-Loss Claim Classification (Triage Model)", content)
+        self.assertIn("F1-Score", content)
+
         # The model count is now rendered dynamically from the CSV.
         import json
         meta = json.loads(METADATA_PATH.read_text())
@@ -946,7 +980,128 @@ class ClaimWiseSystemTests(unittest.TestCase):
         meta = json.loads(CLASSIFICATION_METADATA_PATH.read_text())
         self.assertIn(meta["champion"], content)
 
+    def test_clustering_png_artifacts_exist_and_readable(self):
+        """All 10 requested clustering PNG files exist, are valid non-empty images, and serve via HTTP."""
+        from PIL import Image
+
+        expected_pngs = [
+            "kmeans_elbow.png",
+            "kmeans_silhouette.png",
+            "kmeans_clusters.png",
+            "kmeans_pca_clusters.png",
+            "agglomerative_clusters.png",
+            "dbscan_clusters.png",
+            "pca_explained_variance.png",
+            "pca_2d.png",
+            "tsne_clusters.png",
+            "cluster_profiles.png",
+        ]
+        clustering_dir = PROJECT_ROOT / "Outputs" / "clustering"
+        self.assertTrue(clustering_dir.is_dir(), "Outputs/clustering directory must exist")
+
+        for fname in expected_pngs:
+            img_path = clustering_dir / fname
+            self.assertTrue(img_path.is_file(), f"Clustering PNG missing: {fname}")
+            self.assertGreater(img_path.stat().st_size, 10000, f"File {fname} is suspiciously small")
+            with Image.open(img_path) as im:
+                width, height = im.size
+                self.assertGreater(width, 0, f"Image {fname} has invalid width")
+                self.assertGreater(height, 0, f"Image {fname} has invalid height")
+
+            # Verify Flask route serves it with 200
+            resp = self.client.get(f"/outputs/clustering/{fname}")
+            self.assertEqual(resp.status_code, 200, f"Failed to serve /outputs/clustering/{fname}")
+            self.assertIn("image/png", resp.content_type)
+
+    def test_models_leaderboard_contains_all_16_columns(self):
+        """Model comparison leaderboard displays all 16 required metric columns and handles task filtering."""
+        response = self.client.get("/models")
+        self.assertEqual(response.status_code, 200)
+        html = response.data.decode("utf-8")
+
+        required_columns = [
+            "Rank",
+            "Model Name",
+            "Task",
+            "Target / Features",
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1-score",
+            "MAE",
+            "MSE",
+            "RMSE",
+            "R²",
+            "Silhouette Score",
+            "Number of Clusters",
+            "Noise Points",
+            "Status",
+        ]
+        for col in required_columns:
+            self.assertIn(col, html, f"Leaderboard table is missing requested column header: {col}")
+
+        # Check that Regression, Classification, Clustering, and Dimensionality Reduction tasks appear
+        self.assertIn("Regression", html)
+        self.assertIn("Classification", html)
+        self.assertIn("Clustering", html)
+        self.assertIn("Dimensionality Reduction", html)
+
+    def test_clustering_section_and_algorithms_on_models_page(self):
+        """Models page contains dedicated Clustering & Dimensionality Reduction section with genuine metrics."""
+        response = self.client.get("/models")
+        self.assertEqual(response.status_code, 200)
+        html = response.data.decode("utf-8")
+
+        self.assertIn("Clustering and Dimensionality Reduction", html)
+        self.assertIn("K-Means Clustering with K-Means++ Initialization", html)
+        self.assertIn("Hierarchical Agglomerative Clustering (Ward Linkage)", html)
+        self.assertIn("DBSCAN (Density-Based Spatial Clustering with Noise)", html)
+        self.assertIn("Principal Component Analysis (PCA)", html)
+        self.assertIn("t-SNE (t-Distributed Stochastic Neighbor Embedding)", html)
+        self.assertIn("Noise Points", html)
+        self.assertIn("Interpretation Caution:", html)
+
+    def test_outputs_gallery_contains_clustering_category(self):
+        """Outputs gallery displays dedicated Clustering & Unsupervised Learning category with real charts."""
+        response = self.client.get("/eda-visualization")
+        self.assertEqual(response.status_code, 200)
+        html = response.data.decode("utf-8")
+
+        self.assertIn("Clustering &amp; Unsupervised Learning", html)
+        self.assertIn("kmeans_elbow.png", html)
+        self.assertIn("kmeans_silhouette.png", html)
+        self.assertIn("pca_explained_variance.png", html)
+        self.assertIn("tsne_clusters.png", html)
+
+    def test_clustering_data_leakage_and_metrics_integrity(self):
+        """Clustering pipeline strictly excludes target loss and generates mathematically sound metrics."""
+        import json
+
+        metrics_file = PROJECT_ROOT / "Outputs" / "clustering" / "clustering_evaluation_metrics.json"
+        self.assertTrue(metrics_file.is_file(), "clustering_evaluation_metrics.json must exist")
+
+        data = json.loads(metrics_file.read_text())
+        self.assertTrue(data.get("target_excluded"), "Target 'loss' must be strictly excluded from clustering")
+        self.assertEqual(data.get("feature_count"), 130, "Feature set should contain 130 features (14 continuous + 116 categorical)")
+
+        # Verify K-Means metrics
+        km = data["algorithms"]["kmeans"]
+        self.assertEqual(km["n_clusters"], 2)
+        self.assertGreater(km["silhouette"], 0)
+        self.assertGreater(km["calinski_harabasz"], 100)
+
+        # Verify DBSCAN metrics
+        db = data["algorithms"]["dbscan"]
+        self.assertGreater(db["n_clusters"], 1)
+        self.assertEqual(db["noise_points"], 162)
+        self.assertAlmostEqual(db["noise_pct"], 3.24, places=2)
+
+        # Verify PCA variance
+        pca = data["algorithms"]["pca"]
+        self.assertGreater(pca["pc1_to_pc20_cumulative_%"], 40.0)
+        self.assertGreater(pca["pc1_to_pc50_cumulative_%"], 70.0)
 
 
 if __name__ == "__main__":
     unittest.main()
+

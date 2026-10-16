@@ -1,0 +1,2 @@
+Model,Split,MAE,MSE,RMSE,R2,Explained_Variance,Median_AE,MAPE,Train_Time_Sec,Best_Config
+CatBoost Regressor,"Wave-3 Validation (7,500 rows, seed 2026)",1155.6672588881745,3766150.3392460174,1940.6571926144034,0.5275667439531029,0.5450923633573845,685.8155323752417,48.41485889199234,6.22,"log1p(CatBoost iterations=2000,lr=0.04,depth=6)"

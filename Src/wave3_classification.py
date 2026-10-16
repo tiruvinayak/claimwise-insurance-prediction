@@ -55,6 +55,7 @@ from sklearn.ensemble import (  # noqa: E402
 from sklearn.linear_model import LogisticRegression  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
     accuracy_score,
+    classification_report,
     confusion_matrix,
     f1_score,
     precision_score,
@@ -96,9 +97,11 @@ def binary_metrics(y_true, y_prob, threshold: float) -> dict:
     y_true = np.asarray(y_true)
     y_pred = (np.asarray(y_prob) >= threshold).astype(int)
     return {
-        "F1_binary": float(f1_score(y_true, y_pred, zero_division=0)),
-        "Precision": float(precision_score(y_true, y_pred, zero_division=0)),
-        "Recall": float(recall_score(y_true, y_pred, zero_division=0)),
+        # Binary averaging: metrics are computed for the positive class
+        # (high_loss = 1) only — not macro/weighted across both classes.
+        "F1_binary": float(f1_score(y_true, y_pred, average="binary", zero_division=0)),
+        "Precision": float(precision_score(y_true, y_pred, average="binary", zero_division=0)),
+        "Recall": float(recall_score(y_true, y_pred, average="binary", zero_division=0)),
         "Accuracy": float(accuracy_score(y_true, y_pred)),
         "ROC_AUC": float(roc_auc_score(y_true, y_prob)),
         "PR_AUC": float(average_precision_score(y_true, y_prob)),
@@ -244,6 +247,28 @@ def main() -> int:
     })
     predictions.to_csv(CLASS_DIR / "holdout_predictions.csv", index=False)
 
+    # Per-class classification report (precision/recall/F1/support per label).
+    hold_pred_label = (proba_hold >= 0.5).astype(int)
+    report_dict = classification_report(
+        y_hold, hold_pred_label, output_dict=True, zero_division=0,
+        target_names=["routine (0)", "high_loss (1)"],
+    )
+    report_rows = [
+        {"Class": label,
+         "Precision": report_dict[label]["precision"],
+         "Recall": report_dict[label]["recall"],
+         "F1-Score": report_dict[label]["f1-score"],
+         "Support": report_dict[label]["support"]}
+        for label in ("routine (0)", "high_loss (1)", "macro avg", "weighted avg")
+    ]
+    report_rows.append({
+        "Class": "accuracy",
+        "Precision": np.nan, "Recall": np.nan,
+        "F1-Score": float(report_dict["accuracy"]),
+        "Support": int(report_dict["weighted avg"]["support"]),
+    })
+    pd.DataFrame(report_rows).to_csv(CLASS_DIR / "classification_report_holdout.csv", index=False)
+
     # ROC and PR curves.
     fpr, tpr, _ = roc_curve(y_hold, proba_hold)
     prec, rec, _ = precision_recall_curve(y_hold, proba_hold)
@@ -270,6 +295,11 @@ def main() -> int:
         "positive_class_definition": f"high_loss = 1 when loss >= {threshold:.2f}",
         "threshold": threshold,
         "threshold_source": "75th percentile of the TRAINING split loss only (no validation/holdout leakage)",
+        "averaging": (
+            "binary (positive class = high_loss): Precision/Recall/F1 are computed "
+            "for the high_loss=1 class only, NOT macro or weighted across both "
+            "classes. sklearn default average='binary'."
+        ),
         "selection_metric": "validation F1 (binary, positive class = high_loss)",
         "champion": champion_name,
         "validation_metrics": {k: float(champion_row[k]) if k not in

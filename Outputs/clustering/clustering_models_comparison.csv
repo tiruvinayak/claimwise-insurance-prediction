@@ -1,0 +1,6 @@
+Rank,Model Name,Task,Target / Features,Accuracy,Precision,Recall,F1-score,MAE,MSE,RMSE,R2,Silhouette Score,Number of Clusters,Noise Points,Status
+1,K-Means Clustering,Clustering,130 Features (loss excluded),N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,0.0828,2,0 (0.0%),Evaluated
+2,Hierarchical Agglomerative,Clustering,130 Features (loss excluded),N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,0.0405,5,0 (0.0%),Evaluated
+3,DBSCAN (Density-Based),Clustering,130 Features (loss excluded),N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,0.2994,7,162 (3.24%),Evaluated
+4,Principal Component Analysis (PCA),Dimensionality Reduction,130 Features (loss excluded),N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,50 Components (73.95% var),N/A,Evaluated
+5,t-SNE Manifold Embedding,Dimensionality Reduction,130 Features via PCA-30,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,2 Dimensions (Perplexity 30),N/A,Evaluated

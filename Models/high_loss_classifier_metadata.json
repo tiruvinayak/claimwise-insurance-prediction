@@ -36,5 +36,7 @@
   "seed": 2026,
   "wave": 3,
   "note": "This classifier's F1 measures high-severity claim triage, NOT the accuracy of the continuous loss regression model. The two tasks are reported separately.",
-  "elapsed_seconds": 20.7
+  "elapsed_seconds": 20.7,
+  "averaging": "binary (positive class = high_loss): Precision/Recall/F1 are computed for the high_loss=1 class only, NOT macro or weighted across both classes. sklearn default average='binary'.",
+  "classification_report": "Outputs/ClassificationExperiment/classification_report_holdout.csv"
 }

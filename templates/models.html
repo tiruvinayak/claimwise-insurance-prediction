@@ -58,26 +58,31 @@
                 <div class="model-card-top">
                     <span class="model-card-index">Rank #{{ m.rank or loop.index }}</span>
                     {% if m.is_best %}
-                    <span class="status-badge status-ready">Rank #1 Best Model</span>
+                    <span class="status-badge status-ready">Rank #1 Production Champion</span>
                     {% else %}
                     <span class="status-badge status-completed">Evaluated</span>
                     {% endif %}
                 </div>
                 <h3 class="model-card-title">{{ m.name }}</h3>
                 <p class="model-card-summary">{{ m.model_type }}</p>
+                <div style="margin: 6px 0 10px;">
+                    <span class="meta-badge" style="font-size: 11px; {% if m.transformation == 'Log1p' %}background: var(--accent-tint); color: var(--accent-primary); font-weight: 700; border-color: var(--accent-primary);{% else %}background: var(--surface-soft); color: var(--ink-soft); border-color: var(--line);{% endif %}">
+                        Target Transform: {{ m.transformation or 'None (Original Scale)' }}
+                    </span>
+                </div>
                 {% if m.metrics %}
                 <div class="model-card-metrics">
                     <div>
                         <span class="model-card-metric-label">R² Score</span>
-                        <span class="model-card-metric-value">{{ '%.4f'|format(m.metrics['R2']) }}</span>
+                        <span class="model-card-metric-value" {% if m.is_best %}style="color: var(--accent-primary); font-weight: 800;"{% endif %}>{{ '%.4f'|format(m.metrics['R2']) }}</span>
                     </div>
                     <div>
                         <span class="model-card-metric-label">RMSE</span>
-                        <span class="model-card-metric-value">${{ '%.2f'|format(m.metrics['RMSE']) }}</span>
+                        <span class="model-card-metric-value" {% if m.is_best %}style="color: var(--accent-primary); font-weight: 800;"{% endif %}>${{ '%.2f'|format(m.metrics['RMSE']) }}</span>
                     </div>
                     <div>
                         <span class="model-card-metric-label">MAE</span>
-                        <span class="model-card-metric-value">${{ '%.2f'|format(m.metrics['MAE']) }}</span>
+                        <span class="model-card-metric-value" {% if m.is_best %}style="color: var(--accent-primary); font-weight: 800;"{% endif %}>${{ '%.2f'|format(m.metrics['MAE']) }}</span>
                     </div>
                 </div>
                 {% endif %}
@@ -126,7 +131,7 @@
             <div>
                 <span class="page-label">PRIMARY MACHINE LEARNING WORKFLOW</span>
                 <h2>Five Primary Regression Algorithms (Notebooks 04–08)</h2>
-                <p style="margin: 0;">Verified validation-split metrics across the five foundational regression algorithms (full 13-model leaderboard below):</p>
+                <p style="margin: 0;">Verified validation-split metrics across the five foundational regression algorithms (full {{ model_rows|length }}-model leaderboard below):</p>
             </div>
             <span class="status-badge status-ready">5 Core Regression Models Verified</span>
         </div>
@@ -199,44 +204,136 @@
             </div>
         </div>
 
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;" id="leaderboard-task-filters">
+            <button type="button" class="btn-filter-pill active" onclick="filterLeaderboard('all', this)">All Tasks ({{ unified_leaderboard|length if unified_leaderboard else model_rows|length }})</button>
+            <button type="button" class="btn-filter-pill" onclick="filterLeaderboard('Regression', this)">Regression ({{ (unified_leaderboard|selectattr('task', 'equalto', 'Regression')|list|length) if unified_leaderboard else 15 }})</button>
+            <button type="button" class="btn-filter-pill" onclick="filterLeaderboard('Classification', this)">Classification ({{ (unified_leaderboard|selectattr('task', 'equalto', 'Classification')|list|length) if unified_leaderboard else 4 }})</button>
+            <button type="button" class="btn-filter-pill" onclick="filterLeaderboard('Clustering', this)">Clustering ({{ (unified_leaderboard|selectattr('task', 'equalto', 'Clustering')|list|length) if unified_leaderboard else 3 }})</button>
+            <button type="button" class="btn-filter-pill" onclick="filterLeaderboard('Dimensionality Reduction', this)">Dimensionality Reduction ({{ (unified_leaderboard|selectattr('task', 'equalto', 'Dimensionality Reduction')|list|length) if unified_leaderboard else 2 }})</button>
+        </div>
+
         <div class="table-container">
-            <table>
-                <caption class="sr-only">Validation regression metrics of all ClaimWise model families</caption>
+            <table id="leaderboard-table">
+                <caption class="sr-only">Validation performance across all ClaimWise modeling paradigms: regression, classification, clustering, and dimensionality reduction. Click any header to sort.</caption>
                 <thead>
                     <tr>
-                        <th scope="col">Rank</th>
-                        <th scope="col">Model Name</th>
-                        <th scope="col">MAE ($)</th>
-                        <th scope="col">MSE ($²)</th>
-                        <th scope="col">RMSE ($)</th>
-                        <th scope="col">R² Score</th>
-                        <th scope="col">Exp Var</th>
-                        <th scope="col">Median AE ($)</th>
-                        <th scope="col">MAPE</th>
+                        <th scope="col" class="sortable" data-sort-key="rank" data-sort-type="int" title="Click to sort">Rank</th>
+                        <th scope="col" class="sortable" data-sort-key="name" data-sort-type="text" title="Click to sort">Model Name</th>
+                        <th scope="col" class="sortable" data-sort-key="task" data-sort-type="text" title="Click to sort">Task</th>
+                        <th scope="col">Target / Features</th>
+                        <th scope="col" class="sortable" data-sort-key="accuracy" data-sort-type="num" title="Classification metric — not applicable to continuous regression or clustering">Accuracy</th>
+                        <th scope="col" class="sortable" data-sort-key="precision" data-sort-type="num" title="Classification metric — not applicable to continuous regression or clustering">Precision</th>
+                        <th scope="col" class="sortable" data-sort-key="recall" data-sort-type="num" title="Classification metric — not applicable to continuous regression or clustering">Recall</th>
+                        <th scope="col" class="sortable" data-sort-key="f1" data-sort-type="num" title="Classification metric — not applicable to continuous regression or clustering">F1-score</th>
+                        <th scope="col" class="sortable" data-sort-key="mae" data-sort-type="num" title="Click to sort">MAE ($)</th>
+                        <th scope="col" class="sortable" data-sort-key="mse" data-sort-type="num" title="Click to sort">MSE ($²)</th>
+                        <th scope="col" class="sortable" data-sort-key="rmse" data-sort-type="num" title="Click to sort">RMSE ($)</th>
+                        <th scope="col" class="sortable" data-sort-key="r2" data-sort-type="num" title="Click to sort">R² Score</th>
+                        <th scope="col" class="sortable" data-sort-key="silhouette" data-sort-type="num" title="Clustering quality metric — cohesion vs separation (-1 to +1)">Silhouette Score</th>
+                        <th scope="col">Number of Clusters</th>
+                        <th scope="col">Noise Points</th>
                         <th scope="col">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in model_rows %}
-                    <tr{% if row['Model'] == best_name %} class="row-best"{% endif %}>
-                        <td><strong>#{{ loop.index }}</strong></td>
-                        <th scope="row" class="row-header">
-                            <a href="#{{ row['Model']|lower|replace(' ', '-')|replace('(', '')|replace(')', '') }}" style="color: inherit; text-decoration: none;">
-                                {{ row['Model'] }}
+                    {% for row in (unified_leaderboard or model_rows) %}
+                    <tr{% if row.get('is_best') or row.get('Model') == best_name %} class="row-best"{% endif %} data-task="{{ row.get('task') or row.get('Task', 'Regression') }}">
+                        <td data-sort-value="{{ row.get('rank', row.get('Rank', loop.index)) }}"><strong>#{{ row.get('rank', row.get('Rank', loop.index)) }}</strong></td>
+                        <th scope="row" class="row-header" data-sort-value="{{ row.get('name', row.get('Model')) }}">
+                            <a href="#{{ row.get('slug', (row.get('Model', '')|lower|replace(' ', '-')|replace('(', '')|replace(')', ''))) }}" style="color: inherit; text-decoration: none;">
+                                <strong>{{ row.get('name', row.get('Model')) }}</strong>
                             </a>
                         </th>
-                        <td>${{ '%.2f'|format(row['MAE']) }}</td>
-                        <td>{{ '{:,.2f}'.format(row['MSE']) }}</td>
-                        <td style="font-weight: 700; {% if row['Model'] == best_name %}color: var(--accent-primary);{% endif %}">${{ '%.2f'|format(row['RMSE']) }}</td>
-                        <td style="font-weight: 700; {% if row['Model'] == best_name %}color: var(--accent-primary);{% endif %}">{{ '%.4f'|format(row['R2']) }}</td>
-                        <td>{{ '%.4f'|format(row['Explained_Variance'] if row['Explained_Variance'] is defined else row['R2']) }}</td>
-                        <td>${{ '%.2f'|format(row['Median_AE'] if row['Median_AE'] is defined else 0.0) }}</td>
-                        <td>{{ '%.4f'|format(row['MAPE'] if row['MAPE'] is defined else 0.0) }}</td>
+                        <td data-sort-value="{{ row.get('task', row.get('Task', 'Regression')) }}">
+                            <span class="meta-badge" style="font-size: 11px; {% if row.get('task') == 'Clustering' or row.get('Task') == 'Clustering' %}background: #EDE9FE; color: #6D28D9; border-color: #DDD6FE;{% elif row.get('task') == 'Classification' or row.get('Task') == 'Classification' %}background: #FEF3C7; color: #B45309; border-color: #FDE68A;{% elif row.get('task') == 'Dimensionality Reduction' %}background: #E0F2FE; color: #0369A1; border-color: #BAE6FD;{% endif %}">
+                                {{ row.get('task', row.get('Task', 'Regression')) }}
+                            </span>
+                        </td>
+                        <td style="font-size: 12px; color: var(--ink-soft);">
+                            {{ row.get('target_features', row.get('Target_Transformation', 'None')) }}
+                        </td>
+                        {% set acc_val = row.get('accuracy') if row.get('accuracy') is not none else row.get('Accuracy') %}
+                        {% if acc_val is defined and acc_val is not none and acc_val != 'N/A' %}
+                        <td data-sort-value="{{ acc_val }}">{{ '%.2f'|format(acc_val|float * 100) }}%</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to continuous regression or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set prec_val = row.get('precision') if row.get('precision') is not none else row.get('Precision') %}
+                        {% if prec_val is defined and prec_val is not none and prec_val != 'N/A' %}
+                        <td data-sort-value="{{ prec_val }}" style="font-weight: 600;">{{ '%.4f'|format(prec_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to continuous regression or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set rec_val = row.get('recall') if row.get('recall') is not none else row.get('Recall') %}
+                        {% if rec_val is defined and rec_val is not none and rec_val != 'N/A' %}
+                        <td data-sort-value="{{ rec_val }}" style="font-weight: 600;">{{ '%.4f'|format(rec_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to continuous regression or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set f1_val = row.get('f1') if row.get('f1') is not none else row.get('F1') %}
+                        {% if f1_val is defined and f1_val is not none and f1_val != 'N/A' %}
+                        <td data-sort-value="{{ f1_val }}" style="font-weight: 700; color: var(--ok);">{{ '%.4f'|format(f1_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to continuous regression or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set mae_val = row.get('mae') if row.get('mae') is not none else row.get('MAE') %}
+                        {% if mae_val is defined and mae_val is not none and mae_val != 'N/A' %}
+                        <td data-sort-value="{{ mae_val }}" style="font-weight: 700; {% if row.get('is_best') or row.get('Model') == best_name %}color: var(--accent-primary);{% endif %}">${{ '%.2f'|format(mae_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to discrete classification or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set mse_val = row.get('mse') if row.get('mse') is not none else row.get('MSE') %}
+                        {% if mse_val is defined and mse_val is not none and mse_val != 'N/A' %}
+                        <td data-sort-value="{{ mse_val }}">{{ '{:,.2f}'.format(mse_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to discrete classification or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set rmse_val = row.get('rmse') if row.get('rmse') is not none else row.get('RMSE') %}
+                        {% if rmse_val is defined and rmse_val is not none and rmse_val != 'N/A' %}
+                        <td data-sort-value="{{ rmse_val }}" style="font-weight: 700; {% if row.get('is_best') or row.get('Model') == best_name %}color: var(--accent-primary);{% endif %}">${{ '%.2f'|format(rmse_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to discrete classification or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set r2_val = row.get('r2') if row.get('r2') is not none else row.get('R2') %}
+                        {% if r2_val is defined and r2_val is not none and r2_val != 'N/A' %}
+                        <td data-sort-value="{{ r2_val }}" style="font-weight: 700; {% if row.get('is_best') or row.get('Model') == best_name %}color: var(--accent-primary);{% endif %}">{{ '%.4f'|format(r2_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to discrete classification or unsupervised tasks">N/A</td>
+                        {% endif %}
+
+                        {% set sil_val = row.get('silhouette') if row.get('silhouette') is not none else row.get('Silhouette') %}
+                        {% if sil_val is defined and sil_val is not none and sil_val != 'N/A' %}
+                        <td data-sort-value="{{ sil_val }}" style="font-weight: 700; color: #6D28D9;">{{ '%.4f'|format(sil_val|float) }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to supervised predictive models">N/A</td>
+                        {% endif %}
+
+                        {% set clust_val = row.get('clusters') if row.get('clusters') is not none else row.get('Clusters') %}
+                        {% if clust_val is defined and clust_val is not none and clust_val != 'N/A' %}
+                        <td style="font-size: 12px; font-weight: 600;">{{ clust_val }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to supervised predictive models">N/A</td>
+                        {% endif %}
+
+                        {% set noise_val = row.get('noise') if row.get('noise') is not none else row.get('Noise') %}
+                        {% if noise_val is defined and noise_val is not none and noise_val != 'N/A' %}
+                        <td style="font-size: 12px;">{{ noise_val }}</td>
+                        {% else %}
+                        <td class="metric-na" title="Not applicable to non-density models">N/A</td>
+                        {% endif %}
+
                         <td>
-                            {% if row['Model'] == best_name %}
-                            <span class="status-badge status-ready">Rank #1 Best Model</span>
+                            {% if row.get('is_best') or (row.get('Model') == best_name and row.get('Task', 'Regression') == 'Regression') %}
+                            <span class="status-badge status-ready">Rank #1 Champion</span>
                             {% else %}
-                            <span class="status-badge status-completed">Evaluated</span>
+                            <span class="status-badge status-completed">{{ row.get('status', 'Evaluated') }}</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -244,6 +341,14 @@
                 </tbody>
             </table>
         </div>
+        <p style="margin: 10px 0 0; font-size: 13px; color: var(--ink-soft);">
+            <strong>N/A metric rules:</strong> <abbr title="Not Applicable">N/A</abbr> denotes mathematically sound metric boundaries across tasks —
+            Continuous regression models predict dollar loss (evaluated via MAE, MSE, RMSE, R²; classification Accuracy/Precision/Recall/F1 and clustering Silhouette are N/A);
+            Binary classification models flag high-loss risk (evaluated via Accuracy, Precision, Recall, F1-score, ROC-AUC; continuous regression loss errors are N/A);
+            Clustering models discover unsupervised customer partitions (evaluated via Silhouette Score, Cluster Count, Noise Points; target claim labels are strictly N/A);
+            Dimensionality reduction models (PCA and t-SNE) compress feature geometry (evaluated by explained variance and manifold parameters; other metrics are N/A).
+            Click any column header to sort; use the task filter pills to isolate specific modeling paradigms.
+        </p>
 
         <div class="info-box" style="margin-top: 18px;">
             <p style="margin: 0;">
@@ -263,6 +368,523 @@
             <figcaption>{{ comparison_chart['caption'] }}</figcaption>
         </figure>
         {% endif %}
+    </section>
+
+    <!-- SEPARATE HIGH-LOSS CLAIM CLASSIFICATION TASK (TRIAGE MODEL) -->
+    {% if classification %}
+    <section id="classification-task" class="model-section" style="margin-top: 40px; margin-bottom: 40px; background: var(--surface-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <div>
+                <span class="page-label" style="color: var(--accent);">SEPARATE CLASSIFICATION TASK • RISK TRIAGE</span>
+                <h2 style="margin: 4px 0;">High-Loss Claim Classification (Triage Model)</h2>
+                <p style="margin: 0; max-width: 820px; color: var(--ink-soft);">
+                    <strong>Strict Task Separation:</strong> ClaimWise continuous loss estimation is a regression task evaluated via MAE, RMSE, and R². A separate binary triage model is trained to flag catastrophic high-loss claims (defined as losses &ge; ${{ '%.2f'|format(classification['threshold']) }}, the 75th percentile of the training distribution). Classification metrics (Precision, Recall, F1) apply exclusively to this triage model and are never conflated with regression accuracy.
+                </p>
+            </div>
+            <span class="status-badge status-ready">{{ classification['champion'] }}</span>
+        </div>
+
+        <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 16px; margin-bottom: 18px;">
+            <div class="card" style="background: var(--surface); border-left: 3px solid var(--accent);">
+                <h3>Task Definition</h3>
+                <div class="stat-value" style="font-size: 15px; color: var(--ink); margin-top: 6px;">Binary Claim Triage</div>
+                <p style="font-size: 12px; margin-top: 4px;">High-loss (1) vs Standard (0) at ${{ '%.2f'|format(classification['threshold']) }}</p>
+            </div>
+            <div class="card" style="background: var(--surface); border-left: 3px solid var(--ok);">
+                <h3>Validation F1-Score</h3>
+                <div class="stat-value" style="font-size: 24px; color: var(--ok); margin-top: 6px;">{{ '%.4f'|format(classification['validation_metrics']['F1_binary']) }}</div>
+                <p style="font-size: 12px; margin-top: 4px;">Holdout F1: {{ '%.4f'|format(classification['final_holdout_metrics']['F1_binary']) }}</p>
+            </div>
+            <div class="card" style="background: var(--surface); border-left: 3px solid #0EA5E9;">
+                <h3>Recall (Sensitivity)</h3>
+                <div class="stat-value" style="font-size: 24px; color: #0EA5E9; margin-top: 6px;">{{ '%.2f'|format(classification['validation_metrics']['Recall'] * 100) }}%</div>
+                <p style="font-size: 12px; margin-top: 4px;">Catches ~80% of all high-severity claims</p>
+            </div>
+            <div class="card" style="background: var(--surface); border-left: 3px solid var(--teal);">
+                <h3>Precision</h3>
+                <div class="stat-value" style="font-size: 24px; color: var(--teal); margin-top: 6px;">{{ '%.2f'|format(classification['validation_metrics']['Precision'] * 100) }}%</div>
+                <p style="font-size: 12px; margin-top: 4px;">Positive predictive value for triage</p>
+            </div>
+            <div class="card" style="background: var(--surface); border-left: 3px solid var(--accent-secondary);">
+                <h3>ROC-AUC</h3>
+                <div class="stat-value" style="font-size: 24px; color: var(--accent-secondary); margin-top: 6px;">{{ '%.4f'|format(classification['validation_metrics']['ROC_AUC']) }}</div>
+                <p style="font-size: 12px; margin-top: 4px;">Area under ROC curve (discrimination)</p>
+            </div>
+            <div class="card" style="background: var(--surface); border-left: 3px solid var(--ink-soft);">
+                <h3>Accuracy</h3>
+                <div class="stat-value" style="font-size: 24px; color: var(--ink); margin-top: 6px;">{{ '%.2f'|format(classification['validation_metrics']['Accuracy'] * 100) }}%</div>
+                <p style="font-size: 12px; margin-top: 4px;">Overall classification accuracy</p>
+            </div>
+        </div>
+
+        <p style="margin: 12px 0 0; font-size: 13px; color: var(--ink-soft);">
+            <strong>Averaging method:</strong> {{ classification.get('averaging', 'binary (positive class = high_loss)') }}
+            <strong>Metric separation:</strong> this table reports classification metrics only — regression error metrics (MAE/MSE/RMSE/R²) are marked N/A because they do not apply to a discrete-label triage task.
+        </p>
+
+        <div class="table-container" style="margin-top: 14px;">
+            <table>
+                <caption class="sr-only">Classification metrics for the high-loss triage model on validation and holdout splits</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Model Name</th>
+                        <th scope="col">Task</th>
+                        <th scope="col">Target Transformation</th>
+                        <th scope="col">Accuracy</th>
+                        <th scope="col">Precision</th>
+                        <th scope="col">Recall</th>
+                        <th scope="col">F1-Score</th>
+                        <th scope="col">ROC-AUC</th>
+                        <th scope="col">PR-AUC</th>
+                        <th scope="col" title="Regression metric — not applicable to classification">MAE</th>
+                        <th scope="col" title="Regression metric — not applicable to classification">MSE</th>
+                        <th scope="col" title="Regression metric — not applicable to classification">RMSE</th>
+                        <th scope="col" title="Regression metric — not applicable to classification">R²</th>
+                        <th scope="col">Evaluation Dataset</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set vm = classification['validation_metrics'] %}
+                    <tr>
+                        <th scope="row" class="row-header"><strong>{{ classification['champion'] }}</strong></th>
+                        <td><span class="meta-badge" style="font-size: 11px;">Classification</span></td>
+                        <td><span class="meta-badge" style="font-size: 11px; background: var(--surface-soft); color: var(--ink-muted); border-color: var(--line);">None</span></td>
+                        <td>{{ '%.4f'|format(vm['Accuracy']) }}</td>
+                        <td style="font-weight: 700;">{{ '%.4f'|format(vm['Precision']) }}</td>
+                        <td style="font-weight: 700;">{{ '%.4f'|format(vm['Recall']) }}</td>
+                        <td style="font-weight: 700; color: var(--ok);">{{ '%.4f'|format(vm['F1_binary']) }}</td>
+                        <td>{{ '%.4f'|format(vm['ROC_AUC']) }}</td>
+                        <td>{{ '%.4f'|format(vm['PR_AUC']) }}</td>
+                        <td class="metric-na" title="MAE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="MSE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="RMSE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="R² is a regression variance statistic; classification uses ROC-AUC/PR-AUC instead.">N/A</td>
+                        <td style="font-size: 12px; color: var(--ink-soft);">Wave-3 Validation (7,500 rows, seed 2026)</td>
+                        <td><span class="status-badge status-completed">Evaluated</span></td>
+                    </tr>
+                    {% set hm = classification['final_holdout_metrics'] %}
+                    <tr>
+                        <th scope="row" class="row-header"><strong>{{ classification['champion'] }}</strong></th>
+                        <td><span class="meta-badge" style="font-size: 11px;">Classification</span></td>
+                        <td><span class="meta-badge" style="font-size: 11px; background: var(--surface-soft); color: var(--ink-muted); border-color: var(--line);">None</span></td>
+                        <td>{{ '%.4f'|format(hm['Accuracy']) }}</td>
+                        <td style="font-weight: 700;">{{ '%.4f'|format(hm['Precision']) }}</td>
+                        <td style="font-weight: 700;">{{ '%.4f'|format(hm['Recall']) }}</td>
+                        <td style="font-weight: 700; color: var(--ok);">{{ '%.4f'|format(hm['F1_binary']) }}</td>
+                        <td>{{ '%.4f'|format(hm['ROC_AUC']) }}</td>
+                        <td>{{ '%.4f'|format(hm['PR_AUC']) }}</td>
+                        <td class="metric-na" title="MAE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="MSE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="RMSE measures continuous prediction error; this classification model outputs discrete labels.">N/A</td>
+                        <td class="metric-na" title="R² is a regression variance statistic; classification uses ROC-AUC/PR-AUC instead.">N/A</td>
+                        <td style="font-size: 12px; color: var(--ink-soft);">Wave-3 Holdout (10,000 rows, seed 2026)</td>
+                        <td><span class="status-badge status-ready">Final Holdout</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p style="margin: 10px 0 0; font-size: 13px; color: var(--ink-soft);">
+            Per-class holdout breakdown (precision/recall/F1/support for each class) is saved at
+            <code>Outputs/ClassificationExperiment/classification_report_holdout.csv</code> and previewable on the
+            <a href="/reports" style="color: var(--accent-primary);">Reports page</a>.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 14px;">
+            <div class="card" style="background: var(--surface); padding: 16px;">
+                <h4 style="margin: 0 0 10px; font-size: 14px;">Validation Split Confusion Matrix (7,500 Claims)</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                    <div style="background: var(--surface-soft); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--line);">
+                        <span style="color: var(--ink-muted); display: block; font-size: 11px;">True Negative (Standard)</span>
+                        <strong style="font-size: 18px; color: var(--ink);">{{ '{:,}'.format(classification['validation_metrics']['Confusion_TN']) }}</strong>
+                    </div>
+                    <div style="background: #FEF3C7; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #FDE68A;">
+                        <span style="color: #92400E; display: block; font-size: 11px;">False Positive (False Alarm)</span>
+                        <strong style="font-size: 18px; color: #B45309;">{{ '{:,}'.format(classification['validation_metrics']['Confusion_FP']) }}</strong>
+                    </div>
+                    <div style="background: #FEE2E2; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #FECACA;">
+                        <span style="color: #991B1B; display: block; font-size: 11px;">False Negative (Missed Risk)</span>
+                        <strong style="font-size: 18px; color: #DC2626;">{{ '{:,}'.format(classification['validation_metrics']['Confusion_FN']) }}</strong>
+                    </div>
+                    <div style="background: #ECFDF5; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #A7F3D0;">
+                        <span style="color: #065F46; display: block; font-size: 11px;">True Positive (Flagged High Loss)</span>
+                        <strong style="font-size: 18px; color: #059669;">{{ '{:,}'.format(classification['validation_metrics']['Confusion_TP']) }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="background: var(--surface); padding: 16px;">
+                <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Curves & Classification Outputs</h4>
+                <p style="font-size: 13px; color: var(--ink-soft); margin-bottom: 12px;">
+                    ROC and Precision-Recall evaluation curves generated during the wave-3 classification experiment. Model artifact saved at <code>Models/high_loss_classifier.pkl</code>.
+                </p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn-preview-sm" onclick="openImageLightbox('/outputs/ClassificationExperiment/roc_pr_curves.png', 'Classification ROC & PR Curves')">
+                        <span>🔍</span> View ROC &amp; PR Curves
+                    </button>
+                    <a href="/academic#classification" class="btn-secondary" style="font-size: 12px; padding: 6px 12px; text-decoration: none;">
+                        <span>🎓</span> Academic Classification Details &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ======================= SECTION: CLUSTERING & DIMENSIONALITY REDUCTION ======================= -->
+    <section id="clustering-unsupervised" class="model-section" style="margin-top: 48px; margin-bottom: 48px; background: var(--surface-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div>
+                <span class="page-label" style="color: #6D28D9;">UNSUPERVISED LEARNING &amp; SEGMENTATION</span>
+                <h2 style="margin: 4px 0;">Clustering and Dimensionality Reduction</h2>
+                <p style="margin: 0; max-width: 860px; color: var(--ink-soft);">
+                    <strong>Unsupervised Pattern Discovery:</strong> Exploration of the 50,000 historical insurance records across 130 standardized continuous and encoded categorical features. The target column <code>loss</code> is strictly excluded from all clustering inputs to prevent data leakage. Cluster IDs represent homogeneous risk/profile groups, <strong>never insurance claim amount predictions</strong>. PCA and t-SNE compress high-dimensional geometries for variance profiling and non-linear manifold inspection.
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/clustering_models_comparison.csv', 'Clustering Benchmark Metrics')">
+                    <span>📄</span> Benchmark CSV
+                </button>
+                <a href="/csv/download/Outputs/clustering/clustering_models_comparison.csv" class="btn-download-sm">
+                    <span>⬇️</span> Download CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. K-MEANS CLUSTERING -->
+        <div class="card" id="clustering-kmeans" style="background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span class="meta-badge" style="background: #EDE9FE; color: #6D28D9; border-color: #DDD6FE; font-weight: 700;">PARTITIONING CLUSTERING</span>
+                    <h3 style="margin: 6px 0 2px; font-size: 18px;">K-Means Clustering with K-Means++ Initialization</h3>
+                    <p style="margin: 0; font-size: 13.5px; color: var(--ink-soft);">
+                        <strong>Purpose:</strong> Unsupervised partitioning into homogeneous risk segments by minimizing within-cluster sum of squares (WCSS). Cluster IDs are group assignments, not claim loss predictions.
+                    </p>
+                </div>
+                <span class="status-badge status-ready">Evaluated (k=2)</span>
+            </div>
+
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+                <div class="metric-tile">
+                    <span class="metric-label">Optimal Clusters (k)</span>
+                    <span class="metric-value" style="color: #6D28D9;">k = 2</span>
+                    <span class="metric-note">Peak silhouette across k=2..8 &amp; elbow</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Silhouette Score</span>
+                    <span class="metric-value">0.0828</span>
+                    <span class="metric-note">Sample validation (-1 to +1 scale)</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Calinski-Harabasz</span>
+                    <span class="metric-value">2,820.7</span>
+                    <span class="metric-note">Variance ratio criterion</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Davies-Bouldin Index</span>
+                    <span class="metric-value">3.14</span>
+                    <span class="metric-note">Cluster similarity index (lower is better)</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Inertia (WCSS)</span>
+                    <span class="metric-value">6,093,955</span>
+                    <span class="metric-note">Full 50,000 records fit</span>
+                </div>
+            </div>
+
+            <div style="background: var(--surface-soft); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--line); font-size: 13px; margin-bottom: 18px;">
+                <strong>Configuration &amp; Preprocessing:</strong> Features used: 130 standardized continuous and label-encoded categorical variables (target <code>loss</code> strictly excluded). Preprocessing: <code>StandardScaler</code> fitted on features only. Parameters: <code>n_clusters=2, init='k-means++', n_init=10, random_state=42</code>. Cluster 0: 21,447 records (42.89%, mean loss $2,982.89) | Cluster 1: 28,553 records (57.11%, mean loss $3,074.16).
+            </div>
+
+            <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Visualizations</h4>
+            <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/kmeans_elbow.png') }}" alt="K-Means Elbow Method WCSS vs k" loading="lazy">
+                    <figcaption><strong>Elbow Method:</strong> WCSS (inertia) vs k=1..10 with marked optimal elbow at k=2.</figcaption>
+                </figure>
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/kmeans_silhouette.png') }}" alt="K-Means Silhouette Score vs k" loading="lazy">
+                    <figcaption><strong>Silhouette Analysis:</strong> Cohesion vs separation across k=2..8 confirming peak at k=2.</figcaption>
+                </figure>
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/kmeans_clusters.png') }}" alt="K-Means Cluster Size Distribution" loading="lazy">
+                    <figcaption><strong>Cluster Membership:</strong> Cluster 0 (42.9%) vs Cluster 1 (57.1%) distribution across 50k records.</figcaption>
+                </figure>
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/kmeans_pca_clusters.png') }}" alt="K-Means in 2D PCA Space" loading="lazy">
+                    <figcaption><strong>2D PCA Projection:</strong> Clusters mapped onto dominant feature variance directions.</figcaption>
+                </figure>
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/cluster_profiles.png') }}" alt="Cluster Profiles Loss and Features" loading="lazy">
+                    <figcaption><strong>Cluster Profiles:</strong> Boxplots of claim loss distribution and core predictor standardized means.</figcaption>
+                </figure>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/cluster_profiles.csv', 'K-Means Cluster Profiles')">
+                    <span>🔍</span> Preview Cluster Profiles CSV
+                </button>
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/kmeans_summary.csv', 'K-Means Summary Metrics')">
+                    <span>🔍</span> Preview K-Means Summary CSV
+                </button>
+                <a href="/csv/download/Outputs/clustering/kmeans_cluster_assignments.csv" class="btn-download-sm">
+                    <span>⬇️</span> Download Full Assignments CSV (50k rows)
+                </a>
+            </div>
+        </div>
+
+        <!-- 2. HIERARCHICAL AGGLOMERATIVE CLUSTERING -->
+        <div class="card" id="clustering-agglomerative" style="background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span class="meta-badge" style="background: #EDE9FE; color: #6D28D9; border-color: #DDD6FE; font-weight: 700;">HIERARCHICAL CLUSTERING</span>
+                    <h3 style="margin: 6px 0 2px; font-size: 18px;">Hierarchical Agglomerative Clustering (Ward Linkage)</h3>
+                    <p style="margin: 0; font-size: 13.5px; color: var(--ink-soft);">
+                        <strong>Purpose:</strong> Bottom-up tree clustering that iteratively merges nearest point pairs and sub-clusters according to Ward's minimum variance criterion. Evaluated on a representative 5,000-record sample.
+                    </p>
+                </div>
+                <span class="status-badge status-ready">Evaluated (k=5)</span>
+            </div>
+
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+                <div class="metric-tile">
+                    <span class="metric-label">Selected Clusters</span>
+                    <span class="metric-value" style="color: #6D28D9;">k = 5</span>
+                    <span class="metric-note">Peak silhouette across k=2..5</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Silhouette Score</span>
+                    <span class="metric-value">0.0405</span>
+                    <span class="metric-note">Ward linkage cohesion</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Calinski-Harabasz</span>
+                    <span class="metric-value">212.4</span>
+                    <span class="metric-note">Variance ratio criterion</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Davies-Bouldin Index</span>
+                    <span class="metric-value">2.85</span>
+                    <span class="metric-note">Cluster similarity index</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Sample Size Evaluated</span>
+                    <span class="metric-value">5,000</span>
+                    <span class="metric-note">O(N²) pairwise distance bounded</span>
+                </div>
+            </div>
+
+            <div style="background: var(--surface-soft); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--line); font-size: 13px; margin-bottom: 18px;">
+                <strong>Configuration &amp; Preprocessing:</strong> Features used: 130 standardized continuous and label-encoded categorical variables. Linkage criterion: <code>ward</code> (minimizes total within-cluster variance). Distance metric: <code>euclidean</code>. Cluster distribution: Cluster 0: 1,385 claims | Cluster 1: 1,220 claims | Cluster 2: 1,040 claims | Cluster 3: 790 claims | Cluster 4: 565 claims.
+            </div>
+
+            <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Visualizations</h4>
+            <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/agglomerative_clusters.png') }}" alt="Hierarchical Agglomerative Clustering in 2D PCA Space" loading="lazy">
+                    <figcaption><strong>Agglomerative Clusters &amp; Silhouette:</strong> 2D PCA projection colored by 5 agglomerative clusters alongside silhouette scores across candidate k.</figcaption>
+                </figure>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/agglomerative_summary.csv', 'Agglomerative Clustering Summary')">
+                    <span>🔍</span> Preview Summary CSV
+                </button>
+                <a href="/csv/download/Outputs/clustering/agglomerative_assignments.csv" class="btn-download-sm">
+                    <span>⬇️</span> Download Agglomerative Assignments CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- 3. DBSCAN DENSITY-BASED CLUSTERING -->
+        <div class="card" id="clustering-dbscan" style="background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span class="meta-badge" style="background: #EDE9FE; color: #6D28D9; border-color: #DDD6FE; font-weight: 700;">DENSITY-BASED CLUSTERING</span>
+                    <h3 style="margin: 6px 0 2px; font-size: 18px;">DBSCAN (Density-Based Spatial Clustering with Noise)</h3>
+                    <p style="margin: 0; font-size: 13.5px; color: var(--ink-soft);">
+                        <strong>Purpose:</strong> Identifies continuous dense clusters of arbitrary geometric shape while isolating sparse outliers as noise. Points not belonging to any dense region are assigned label <code>-1</code>.
+                    </p>
+                </div>
+                <span class="status-badge status-ready">Evaluated (7 Clusters)</span>
+            </div>
+
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+                <div class="metric-tile">
+                    <span class="metric-label">Dense Clusters</span>
+                    <span class="metric-value" style="color: #6D28D9;">7</span>
+                    <span class="metric-note">Discovered dense groupings</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Noise Points (Label -1)</span>
+                    <span class="metric-value">162 (3.24%)</span>
+                    <span class="metric-note">Statistical feature outliers (not fraud)</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Valid Silhouette Score</span>
+                    <span class="metric-value">0.2994</span>
+                    <span class="metric-note">130 features (0.3675 on PCA-20)</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Epsilon Radius (eps)</span>
+                    <span class="metric-value">13.675</span>
+                    <span class="metric-note">Derived from k-distance knee (k=10)</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Min Samples</span>
+                    <span class="metric-value">10</span>
+                    <span class="metric-note">Minimum points for dense core</span>
+                </div>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--line); font-size: 13px; margin-bottom: 18px;">
+                <strong>Noise Point Interpretation:</strong> DBSCAN explicitly labels unclustered points as <code>-1</code>. These 162 records (3.24% of the 5,000-claim evaluation partition) represent unusual multivariate feature combinations in 130-dimensional space. Because ClaimWise contains no ground-truth fraud labels, these records represent statistical density outliers and are never claimed to be fraudulent.
+            </div>
+
+            <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Visualizations</h4>
+            <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/dbscan_clusters.png') }}" alt="DBSCAN Clusters and Noise Distribution" loading="lazy">
+                    <figcaption><strong>DBSCAN Clusters &amp; Noise:</strong> Core clusters alongside grey 'x' noise markers (label -1) and cluster size breakdown.</figcaption>
+                </figure>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/dbscan_summary.csv', 'DBSCAN Summary Metrics')">
+                    <span>🔍</span> Preview Summary CSV
+                </button>
+                <a href="/csv/download/Outputs/clustering/dbscan_cluster_assignments.csv" class="btn-download-sm">
+                    <span>⬇️</span> Download DBSCAN Assignments CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- 4. PRINCIPAL COMPONENT ANALYSIS (PCA) -->
+        <div class="card" id="clustering-pca" style="background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span class="meta-badge" style="background: #E0F2FE; color: #0369A1; border-color: #BAE6FD; font-weight: 700;">LINEAR DIMENSIONALITY REDUCTION</span>
+                    <h3 style="margin: 6px 0 2px; font-size: 18px;">Principal Component Analysis (PCA)</h3>
+                    <p style="margin: 0; font-size: 13.5px; color: var(--ink-soft);">
+                        <strong>Purpose:</strong> Projects 130 correlated variables into orthogonal principal components that sequentially maximize explained variance. Components are linear combinations of all original features.
+                    </p>
+                </div>
+                <span class="status-badge status-ready">Evaluated (50 Components)</span>
+            </div>
+
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+                <div class="metric-tile">
+                    <span class="metric-label">PC1 Variance</span>
+                    <span class="metric-value" style="color: #0369A1;">5.42%</span>
+                    <span class="metric-note">Dominant linear variance axis</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">PC2 Variance</span>
+                    <span class="metric-value">4.18%</span>
+                    <span class="metric-note">Second orthogonal axis</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Top 20 Components</span>
+                    <span class="metric-value">48.20%</span>
+                    <span class="metric-note">Cumulative variance captured</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Top 50 Components</span>
+                    <span class="metric-value">73.95%</span>
+                    <span class="metric-note">Over two-thirds of total variance</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">80% Threshold</span>
+                    <span class="metric-value">~62 PCs</span>
+                    <span class="metric-note">50% compression of 130 features</span>
+                </div>
+            </div>
+
+            <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Visualizations</h4>
+            <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/pca_explained_variance.png') }}" alt="PCA Explained Variance and Scree Plot" loading="lazy">
+                    <figcaption><strong>Scree &amp; Cumulative Curve:</strong> Individual component variance shares alongside cumulative variance with 80% and 90% benchmark lines.</figcaption>
+                </figure>
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/pca_2d.png') }}" alt="2D PCA Space Colored by Claim Loss" loading="lazy">
+                    <figcaption><strong>2D Principal Plane:</strong> Continuous claim severity dispersion across the first two principal components.</figcaption>
+                </figure>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/pca_summary.csv', 'PCA Summary Metrics')">
+                    <span>🔍</span> Preview PCA Summary CSV
+                </button>
+                <a href="/academic#pca" class="btn-secondary" style="font-size: 12px; padding: 6px 12px; text-decoration: none;">
+                    <span>🎓</span> View Full PCA Academic Analysis &rarr;
+                </a>
+            </div>
+        </div>
+
+        <!-- 5. t-SNE MANIFOLD EMBEDDING -->
+        <div class="card" id="clustering-tsne" style="background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 22px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span class="meta-badge" style="background: #E0F2FE; color: #0369A1; border-color: #BAE6FD; font-weight: 700;">NON-LINEAR MANIFOLD EMBEDDING</span>
+                    <h3 style="margin: 6px 0 2px; font-size: 18px;">t-SNE (t-Distributed Stochastic Neighbor Embedding)</h3>
+                    <p style="margin: 0; font-size: 13.5px; color: var(--ink-soft);">
+                        <strong>Purpose:</strong> Models probabilistic pairwise similarities in high-dimensional space to project complex non-linear claim feature topologies into an interpretable two-dimensional visual manifold.
+                    </p>
+                </div>
+                <span class="status-badge status-ready">Evaluated (2D Manifold)</span>
+            </div>
+
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+                <div class="metric-tile">
+                    <span class="metric-label">Output Dimensions</span>
+                    <span class="metric-value" style="color: #0369A1;">2D</span>
+                    <span class="metric-note">Manifold projection space</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Pre-reduction Method</span>
+                    <span class="metric-value">PCA (30 PCs)</span>
+                    <span class="metric-note">Suppresses high-frequency noise</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Perplexity</span>
+                    <span class="metric-value">30.0</span>
+                    <span class="metric-note">Effective neighbor balance</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Learning Rate</span>
+                    <span class="metric-value">auto</span>
+                    <span class="metric-note">Adaptive gradient descent</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="metric-label">Sample Size</span>
+                    <span class="metric-value">2,500</span>
+                    <span class="metric-note">Random seed 42</span>
+                </div>
+            </div>
+
+            <div style="background: var(--surface-soft); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--line); font-size: 13px; margin-bottom: 18px;">
+                <strong>Interpretation Caution:</strong> t-SNE coordinates represent arbitrary non-linear manifold embeddings optimized to keep neighboring insurance profiles close together. The axes have no physical units, distances between distant clusters are not linear metric measurements, and cluster density reflects gradient optimization rather than absolute probability density.
+            </div>
+
+            <h4 style="margin: 0 0 10px; font-size: 14px;">Diagnostic Visualizations</h4>
+            <div class="figure-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <figure class="figure-card">
+                    <img src="{{ url_for('outputs', filename='clustering/tsne_clusters.png') }}" alt="t-SNE 2D Manifold Embedding" loading="lazy">
+                    <figcaption><strong>t-SNE Manifold Projection:</strong> 2D manifold embedding on PCA-30 subspace colored by K-Means cluster assignments.</figcaption>
+                </figure>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" class="btn-preview-sm" onclick="openCsvModal('Outputs/clustering/tsne_summary.csv', 't-SNE Parameters &amp; Metrics')">
+                    <span>🔍</span> Preview Parameters CSV
+                </button>
+                <a href="/outputs/clustering/tsne_clusters.png" class="btn-download-sm" download="tsne_clusters.png">
+                    <span>⬇️</span> Download High-Res t-SNE PNG
+                </a>
+            </div>
+        </div>
     </section>
 
     <!-- TOPIC-SPECIFIC CSV ARTIFACTS SECTION -->
@@ -444,5 +1066,82 @@
     {% endif %}
 
 </div>
+
+<script>
+function filterLeaderboard(task, btn) {
+    const table = document.getElementById('leaderboard-table');
+    if (!table) return;
+    const filterButtons = document.querySelectorAll('#leaderboard-task-filters .btn-filter-pill');
+    filterButtons.forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const rowTask = row.getAttribute('data-task') || '';
+        if (task === 'all' || rowTask.toLowerCase() === task.toLowerCase()) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+window.filterLeaderboard = filterLeaderboard;
+
+(function () {
+    const table = document.getElementById('leaderboard-table');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const headers = table.querySelectorAll('thead th.sortable');
+    let currentKey = null;
+    let currentDir = 'desc';
+
+    function cellValue(row, key) {
+        const thIndex = Array.from(table.tHead.rows[0].cells)
+            .findIndex(th => th.getAttribute('data-sort-key') === key);
+        if (thIndex < 0) return null;
+        const cell = row.cells[thIndex];
+        const raw = cell ? (cell.getAttribute('data-sort-value') || cell.textContent.trim()) : '';
+        return raw;
+    }
+
+    function compareRows(a, b, key, type, dir) {
+        const va = cellValue(a, key);
+        const vb = cellValue(b, key);
+        let cmp;
+        if (type === 'num' || type === 'int') {
+            const na = parseFloat(va);
+            const nb = parseFloat(vb);
+            cmp = (isNaN(na) ? Infinity : na) - (isNaN(nb) ? Infinity : nb);
+        } else {
+            cmp = String(va).localeCompare(String(vb));
+        }
+        return dir === 'asc' ? cmp : -cmp;
+    }
+
+    headers.forEach(th => {
+        th.setAttribute('tabindex', '0');
+        th.setAttribute('role', 'button');
+        const activate = () => {
+            const key = th.getAttribute('data-sort-key');
+            const type = th.getAttribute('data-sort-type') || 'text';
+            if (currentKey === key) {
+                currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentKey = key;
+                currentDir = (type === 'text') ? 'asc' : 'asc';
+            }
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add(currentDir === 'asc' ? 'sort-asc' : 'sort-desc');
+            const rows = Array.from(tbody.rows);
+            rows.sort((ra, rb) => compareRows(ra, rb, key, type, currentDir));
+            rows.forEach(r => tbody.appendChild(r));
+        };
+        th.addEventListener('click', activate);
+        th.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+        });
+    });
+})();
+</script>
 
 {% endblock %}

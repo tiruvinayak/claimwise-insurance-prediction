@@ -1,2 +1,2 @@
 Model,Split,MAE,MSE,RMSE,R2,Explained_Variance,Median_AE,MAPE,Train_Time_Sec,Best_Config
-Extra Trees Regressor,Validation,1282.7442322476368,4388944.465363222,2094.9807792347933,0.5040298739928031,0.50403099685506,854.3960038583818,64.96747965629649,3.78,"n_estimators=200,max_depth=16,min_samples_leaf=2,max_features=0.5"
+Extra Trees Regressor,"Wave-3 Validation (7,500 rows, seed 2026)",1239.8327094302786,3893887.172660438,1973.293483661373,0.5115431860249358,0.5115738450786947,846.7509596430493,63.76521444894004,1.25,"n_estimators=200,max_depth=None,min_samples_leaf=2,max_features=sqrt"

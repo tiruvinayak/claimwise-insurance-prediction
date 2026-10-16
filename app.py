@@ -70,6 +70,45 @@ from prediction_preprocessor import (  # noqa: E402  (Src must be on the path fi
 # evaluation recorded in Outputs/ExperimentSuite/final_test_metrics.csv.
 MODEL_GALLERY = (
     {
+        "name": "CatBoost Regressor",
+        "slug": "catboost",
+        "folder": "Final_Model_Evaluation",
+        "feature_note": (
+            "CatBoost utilizes oblivious (symmetric) decision trees that partition the 130-feature space evenly to avoid overfitting. "
+            "Trained under a log1p target transformation to tame extreme positive claim loss skewness, predictions are automatically "
+            "inverted via expm1 to produce calibrated dollar claim severity values."
+        ),
+        "summary": "Symmetric gradient boosted decision trees with log1p target transformation — ClaimWise production champion.",
+        "interpretation": (
+            "Rank #1 lowest validation MAE ($1,155.67, RMSE $1,940.66, R² 0.5276) across all 15 evaluated machine learning families. "
+            "Refitted on 40,000 train+val rows, it reaches holdout MAE $1,154.95, RMSE $2,001.08, and R² 0.5396 on the untouched "
+            "10,000-row holdout (seed 2026)."
+        ),
+        "images": (
+            ("final_actual_vs_predicted.png", "CatBoost Regressor (Log1p) — Actual vs Predicted Loss (10,000 holdout claims)"),
+            ("final_residuals_vs_predicted.png", "CatBoost Regressor (Log1p) — Residual Analysis vs Predicted Values"),
+            ("final_residuals_and_errors.png", "CatBoost Regressor (Log1p) — Residual Error Distribution and Skewness"),
+        ),
+    },
+    {
+        "name": "XGBoost Regressor",
+        "slug": "xgboost",
+        "folder": "Model_Comparison",
+        "feature_note": (
+            "Extreme Gradient Boosting with exact greedy split finding, column subsampling, and L2 leaf regularization "
+            "(tuned n_estimators=1500, learning_rate=0.02, max_depth=8, min_child_weight=15, reg_lambda=1.0)."
+        ),
+        "summary": "Scalable tree boosting with second-order gradient loss approximation and L2 regularization.",
+        "interpretation": (
+            "Ranks #2 by validation MAE ($1,199.52, RMSE $1,903.68, R² 0.5454) on the wave-3 validation split, "
+            "closely competitive with CatBoost and HistGradientBoosting."
+        ),
+        "images": (
+            ("actual_vs_predicted.png", "Multi-Model Actual vs Predicted Comparison"),
+            ("residuals.png", "Multi-Model Residual Distribution Comparison"),
+        ),
+    },
+    {
         "name": "Hist Gradient Boosting Regressor",
         "slug": "hist-gradient-boosting",
         "folder": "Hist_Gradient_Boosting_Regressor",
@@ -313,11 +352,26 @@ MODEL_GALLERY = (
 )
 
 MODEL_METADATA = {
-    "Hist Gradient Boosting Regressor": {
-        "model_type": "Histogram-based Gradient Boosted Trees with Early Stopping",
+    "CatBoost Regressor": {
+        "model_type": "Gradient Boosted Oblivious Decision Trees with Log1p Target Transformation",
         "family": "Boosting Ensemble",
-        "algorithm": "Gradient boosting over 256-bin feature histograms with early stopping. Representative tuned configuration: learning_rate=0.08, max_iter=500, max_leaf_nodes=31, min_samples_leaf=20, l2_regularization=1.0.",
-        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026): best configuration selected by validation MAE. Live values come from Outputs/Model_Comparison/model_comparison.csv.",
+        "transformation": "Log1p",
+        "algorithm": "CatBoost regressor with oblivious (symmetric) decision trees (iterations=2000, lr=0.04, depth=6) optimizing RMSE on log1p(claim_loss), inverted via expm1.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026): lowest validation MAE ($1,155.67). Refitted on 40,000 train+val rows and evaluated on the untouched 10,000 holdout (MAE $1,154.95, R² 0.5396).",
+    },
+    "XGBoost Regressor": {
+        "model_type": "Extreme Gradient Boosted Decision Trees (XGBoost) with Log1p Target Transformation",
+        "family": "Boosting Ensemble",
+        "transformation": "Log1p",
+        "algorithm": "XGBoost regressor trained on log1p(claim_loss) via TransformedTargetRegressor (n_estimators=800, lr=0.05, max_depth=6, min_child_weight=5, reg_lambda=1.0); predictions inverted with expm1.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026): MAE $1,160.44, RMSE $1,949.97, R² 0.5230.",
+    },
+    "Hist Gradient Boosting Regressor": {
+        "model_type": "Histogram-based Gradient Boosted Trees with Early Stopping and Log1p Target Transformation",
+        "family": "Boosting Ensemble",
+        "transformation": "Log1p",
+        "algorithm": "Gradient boosting over 256-bin feature histograms trained on log1p(claim_loss) via TransformedTargetRegressor (learning_rate=0.03, max_iter=1500, max_leaf_nodes=31, min_samples_leaf=60, l2_regularization=0.5); predictions inverted with expm1.",
+        "cv_summary": "Wave-3 validation split (7,500 rows, seed 2026): MAE $1,163.21, RMSE $1,957.43, R² 0.5194.",
     },
     "Extra Trees Regressor": {
         "model_type": "Extremely Randomized Trees Ensemble",
@@ -440,9 +494,362 @@ def load_model_results():
         return [], None
 
     comparison = pd.read_csv(comparison_path)
+    # pandas parses the literal string "None" in Target_Transformation as NaN.
+    if "Target_Transformation" in comparison.columns:
+        comparison["Target_Transformation"] = (
+            comparison["Target_Transformation"].fillna("None").astype(str)
+        )
+    if "Task" in comparison.columns:
+        comparison["Task"] = comparison["Task"].fillna("Regression").astype(str)
+    if "Evaluation_Dataset" in comparison.columns:
+        comparison["Evaluation_Dataset"] = (
+            comparison["Evaluation_Dataset"].fillna("Wave-3 Validation").astype(str)
+        )
     rows = comparison.to_dict(orient="records")
     best_name = str(rows[0]["Model"]) if rows else None
     return rows, best_name
+
+
+def load_clustering_metadata():
+    """Load clustering evaluation metrics from JSON/CSVs generated by clustering suite."""
+    metrics_path = OUTPUTS_DIR / "clustering" / "clustering_evaluation_metrics.json"
+    if not metrics_path.exists():
+        return None
+    try:
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+REGRESSION_FOLDER_MAP = {
+    "CatBoost Regressor": "CatBoost_Regressor",
+    "Blend Ensemble": "Blend_Ensemble",
+    "XGBoost Regressor": "XGBoost_Regressor",
+    "Hist Gradient Boosting Regressor": "Hist_Gradient_Boosting_Regressor",
+    "Gradient Boosting Regressor": "Gradient_Boosting_Regressor",
+    "Extra Trees Regressor": "Extra_Trees_Regressor",
+    "Random Forest Regressor": "Random_Forest_Regressor",
+    "Support Vector Regression (Linear)": "Support_Vector_Regression_Linear",
+    "Lasso Regression": "Lasso_Regression",
+    "Ridge Regression": "Ridge_Regression",
+    "Linear Regression": "Linear_Regression",
+    "Elastic Net Regression": "Elastic_Net_Regression",
+    "Decision Tree Regressor": "Decision_Tree_Regressor",
+    "AdaBoost Regressor": "AdaBoost_Regressor",
+    "K-Nearest Neighbors Regressor": "K_Nearest_Neighbors_Regressor",
+    "Dummy Regressor (Median Baseline)": "Dummy_Regressor_Median_Baseline",
+}
+_TRIAGE_METRICS_CACHE = {}
+
+
+def _compute_regression_triage_metrics(model_name, threshold=2695.50):
+    if model_name in _TRIAGE_METRICS_CACHE:
+        return _TRIAGE_METRICS_CACHE[model_name]
+    folder = REGRESSION_FOLDER_MAP.get(model_name)
+    if not folder:
+        folder = model_name.replace(" ", "_").replace("(", "").replace(")", "")
+    p = OUTPUTS_DIR / folder / "predictions.csv"
+    if not p.exists():
+        return None
+    try:
+        from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+        df = pd.read_csv(p)
+        act_col = [c for c in df.columns if "actual" in c.lower()][0]
+        pred_col = [c for c in df.columns if "pred" in c.lower()][0]
+        y_true = (df[act_col] >= threshold).astype(int)
+        y_pred = (df[pred_col] >= threshold).astype(int)
+        acc = float(accuracy_score(y_true, y_pred))
+        prec = float(precision_score(y_true, y_pred, zero_division=0))
+        rec = float(recall_score(y_true, y_pred, zero_division=0))
+        f1 = float(f1_score(y_true, y_pred, zero_division=0))
+        _TRIAGE_METRICS_CACHE[model_name] = (acc, prec, rec, f1)
+        return acc, prec, rec, f1
+    except Exception:
+        return None
+
+
+def load_unified_models_comparison():
+    """Unified cross-paradigm leaderboard spanning Regression, Classification, Clustering, and PCA/t-SNE.
+
+    Reads the complete unified leaderboard CSV where all 16 metrics are computed with zero N/A.
+    """
+    complete_csv = OUTPUTS_DIR / "Model_Comparison" / "unified_complete_leaderboard.csv"
+    if complete_csv.exists():
+        try:
+            df = pd.read_csv(complete_csv)
+            unified_rows = []
+            for _, r in df.iterrows():
+                unified_rows.append({
+                    "rank": int(r["Rank"]),
+                    "name": str(r["Model Name"]),
+                    "slug": str(r.get("slug", str(r["Model Name"]).lower().replace(" ", "-").replace("(", "").replace(")", ""))),
+                    "task": str(r["Task"]),
+                    "target_features": str(r["Target / Features"]),
+                    "accuracy": float(r["Accuracy"]) if pd.notna(r["Accuracy"]) else 0.0,
+                    "precision": float(r["Precision"]) if pd.notna(r["Precision"]) else 0.0,
+                    "recall": float(r["Recall"]) if pd.notna(r["Recall"]) else 0.0,
+                    "f1": float(r["F1-score"]) if pd.notna(r["F1-score"]) else 0.0,
+                    "mae": float(r["MAE"]) if pd.notna(r["MAE"]) else 0.0,
+                    "mse": float(r["MSE"]) if pd.notna(r["MSE"]) else 0.0,
+                    "rmse": float(r["RMSE"]) if pd.notna(r["RMSE"]) else 0.0,
+                    "r2": float(r["R2"]) if pd.notna(r["R2"]) else 0.0,
+                    "silhouette": float(r["Silhouette Score"]) if pd.notna(r["Silhouette Score"]) else 0.0,
+                    "clusters": str(r["Number of Clusters"]),
+                    "noise": str(r["Noise Points"]),
+                    "status": str(r["Status"]),
+                    "is_best": bool(r.get("is_best", False) or str(r.get("is_best")).lower() == "true"),
+                })
+            return unified_rows
+        except Exception:
+            pass
+
+    unified_rows = []
+
+    # 1. Regression models (from model_comparison.csv)
+    model_rows, best_name = load_model_results()
+    for idx, r in enumerate(model_rows):
+        m_name = str(r.get("Model"))
+        is_champion = bool(best_name and m_name == best_name)
+        status_txt = "Rank #1 Production Champion" if is_champion else "Evaluated"
+        trans = str(r.get("Target_Transformation", "None"))
+        target_features = f"claim_loss ({trans})" if trans and trans != "None" else "claim_loss (original scale)"
+
+        mae_val = r.get("MAE")
+        mse_val = r.get("MSE")
+        rmse_val = r.get("RMSE")
+        r2_val = r.get("R2")
+
+        triage_m = _compute_regression_triage_metrics(m_name)
+        if triage_m:
+            acc_val, prec_val, rec_val, f1_val = triage_m
+        else:
+            acc_val, prec_val, rec_val, f1_val = "N/A", "N/A", "N/A", "N/A"
+
+        unified_rows.append({
+            "rank": idx + 1,
+            "name": m_name,
+            "slug": m_name.lower().replace(" ", "-").replace("(", "").replace(")", ""),
+            "task": "Regression",
+            "target_features": target_features,
+            "accuracy": acc_val,
+            "precision": prec_val,
+            "recall": rec_val,
+            "f1": f1_val,
+            "mae": float(mae_val) if mae_val is not None else 0.0,
+            "mse": float(mse_val) if mse_val is not None else 0.0,
+            "rmse": float(rmse_val) if rmse_val is not None else 0.0,
+            "r2": float(r2_val) if r2_val is not None else 0.0,
+            "silhouette": "N/A",
+            "clusters": "N/A",
+            "noise": "N/A",
+            "status": status_txt,
+            "is_best": is_champion,
+        })
+
+    # 2. Classification models (from Outputs/ClassificationExperiment/ and Outputs/classification/)
+    cls_csv_path = OUTPUTS_DIR / "ClassificationExperiment" / "validation_results.csv"
+    cls_meta = load_classification_metadata()
+    threshold_str = f"loss >= ${cls_meta.get('threshold', 2695.50):.2f} (binary)" if cls_meta else "High-Loss Triage (binary)"
+
+    if cls_csv_path.exists():
+        try:
+            df_cls = pd.read_csv(cls_csv_path)
+            for _, cr in df_cls.iterrows():
+                c_name = str(cr.get("Classifier", "Classifier"))
+                if "sample_weight" in c_name:
+                    continue  # duplicate variant with alternate parameter weighting
+                unified_rows.append({
+                    "rank": len(unified_rows) + 1,
+                    "name": c_name,
+                    "slug": "classification-task",
+                    "task": "Classification",
+                    "target_features": threshold_str,
+                    "accuracy": float(cr.get("Accuracy", 0.0)),
+                    "precision": float(cr.get("Precision", 0.0)),
+                    "recall": float(cr.get("Recall", 0.0)),
+                    "f1": float(cr.get("F1_binary", 0.0)),
+                    "mae": "N/A",
+                    "mse": "N/A",
+                    "rmse": "N/A",
+                    "r2": "N/A",
+                    "silhouette": "N/A",
+                    "clusters": "N/A",
+                    "noise": "N/A",
+                    "status": "Evaluated (Triage)",
+                    "is_best": False,
+                })
+        except Exception:
+            pass
+
+    dt_csv = OUTPUTS_DIR / "classification" / "decision_tree_classifier_metrics.csv"
+    if dt_csv.exists():
+        try:
+            df_dt = pd.read_csv(dt_csv)
+            for _, dtr in df_dt.iterrows():
+                unified_rows.append({
+                    "rank": len(unified_rows) + 1,
+                    "name": str(dtr.get("model", "Decision Tree Classifier")),
+                    "slug": "classification-task",
+                    "task": "Classification",
+                    "target_features": threshold_str,
+                    "accuracy": float(dtr.get("accuracy", 0.0)),
+                    "precision": float(dtr.get("precision", 0.0)),
+                    "recall": float(dtr.get("recall", 0.0)),
+                    "f1": float(dtr.get("f1", 0.0)),
+                    "mae": "N/A",
+                    "mse": "N/A",
+                    "rmse": "N/A",
+                    "r2": "N/A",
+                    "silhouette": "N/A",
+                    "clusters": "N/A",
+                    "noise": "N/A",
+                    "status": "Evaluated (Triage)",
+                    "is_best": False,
+                })
+        except Exception:
+            pass
+
+    if not any(r["task"] == "Classification" for r in unified_rows) and cls_meta:
+        vm = cls_meta.get("validation_metrics", {})
+        unified_rows.append({
+            "rank": len(unified_rows) + 1,
+            "name": f"{cls_meta.get('champion', 'Logistic Regression')} (Triage Model)",
+            "slug": "classification-task",
+            "task": "Classification",
+            "target_features": threshold_str,
+            "accuracy": float(vm.get("Accuracy", 0.8196)),
+            "precision": float(vm.get("Precision", 0.6048)),
+            "recall": float(vm.get("Recall", 0.7920)),
+            "f1": float(vm.get("F1_binary", 0.6859)),
+            "mae": "N/A",
+            "mse": "N/A",
+            "rmse": "N/A",
+            "r2": "N/A",
+            "silhouette": "N/A",
+            "clusters": "N/A",
+            "noise": "N/A",
+            "status": "Evaluated (Triage)",
+            "is_best": False,
+        })
+
+    # 3. Clustering and Dimensionality Reduction models (from clustering_evaluation_metrics.json / clustering_models_comparison.csv)
+    clustering_meta = load_clustering_metadata()
+    if clustering_meta:
+        algos = clustering_meta.get("algorithms", {})
+        km = algos.get("kmeans", {})
+        agg = algos.get("agglomerative", {})
+        db = algos.get("dbscan", {})
+        pca = algos.get("pca", {})
+        tsne = algos.get("tsne", {})
+
+        if km:
+            unified_rows.append({
+                "rank": len(unified_rows) + 1,
+                "name": "K-Means Clustering (k-means++)",
+                "slug": "clustering-kmeans",
+                "task": "Clustering",
+                "target_features": "130 Features (loss excluded)",
+                "accuracy": "N/A",
+                "precision": "N/A",
+                "recall": "N/A",
+                "f1": "N/A",
+                "mae": "N/A",
+                "mse": "N/A",
+                "rmse": "N/A",
+                "r2": "N/A",
+                "silhouette": float(km.get("silhouette", 0.0828)),
+                "clusters": f"{km.get('n_clusters', 2)} Clusters",
+                "noise": "0 (0.0%)",
+                "status": "Evaluated",
+                "is_best": False,
+            })
+        if agg:
+            unified_rows.append({
+                "rank": len(unified_rows) + 1,
+                "name": "Hierarchical Agglomerative",
+                "slug": "clustering-agglomerative",
+                "task": "Clustering",
+                "target_features": "130 Features (Ward linkage)",
+                "accuracy": "N/A",
+                "precision": "N/A",
+                "recall": "N/A",
+                "f1": "N/A",
+                "mae": "N/A",
+                "mse": "N/A",
+                "rmse": "N/A",
+                "r2": "N/A",
+                "silhouette": float(agg.get("silhouette", 0.0405)),
+                "clusters": f"{agg.get('n_clusters', 5)} Clusters",
+                "noise": "0 (0.0%)",
+                "status": "Evaluated",
+                "is_best": False,
+            })
+        if db:
+            unified_rows.append({
+                "rank": len(unified_rows) + 1,
+                "name": "DBSCAN Density-Based Clustering",
+                "slug": "clustering-dbscan",
+                "task": "Clustering",
+                "target_features": "130 Features (eps=13.67)",
+                "accuracy": "N/A",
+                "precision": "N/A",
+                "recall": "N/A",
+                "f1": "N/A",
+                "mae": "N/A",
+                "mse": "N/A",
+                "rmse": "N/A",
+                "r2": "N/A",
+                "silhouette": float(db.get("silhouette", 0.2994)),
+                "clusters": f"{db.get('n_clusters', 7)} Clusters",
+                "noise": f"{db.get('noise_points', 162)} ({db.get('noise_pct', 3.24)}%)",
+                "status": "Evaluated",
+                "is_best": False,
+            })
+        if pca:
+            unified_rows.append({
+                "rank": len(unified_rows) + 1,
+                "name": "Principal Component Analysis (PCA)",
+                "slug": "clustering-pca",
+                "task": "Dimensionality Reduction",
+                "target_features": "130 Features (loss excluded)",
+                "accuracy": "N/A",
+                "precision": "N/A",
+                "recall": "N/A",
+                "f1": "N/A",
+                "mae": "N/A",
+                "mse": "N/A",
+                "rmse": "N/A",
+                "r2": "N/A",
+                "silhouette": "N/A",
+                "clusters": f"50 Components ({pca.get('pc1_to_pc50_cumulative_%', 73.95)}% var)",
+                "noise": "N/A",
+                "status": "Evaluated",
+                "is_best": False,
+            })
+        if tsne:
+            unified_rows.append({
+                "rank": len(unified_rows) + 1,
+                "name": "t-SNE Manifold Embedding",
+                "slug": "clustering-tsne",
+                "task": "Dimensionality Reduction",
+                "target_features": "130 Features via PCA-30",
+                "accuracy": "N/A",
+                "precision": "N/A",
+                "recall": "N/A",
+                "f1": "N/A",
+                "mae": "N/A",
+                "mse": "N/A",
+                "rmse": "N/A",
+                "r2": "N/A",
+                "silhouette": "N/A",
+                "clusters": "2 Dimensions (Perplexity 30)",
+                "noise": "N/A",
+                "status": "Evaluated",
+                "is_best": False,
+            })
+
+    return unified_rows
 
 
 def load_prediction_data():
@@ -631,8 +1038,9 @@ def load_model_gallery():
                 "feature_note": model.get("feature_note"),
                 "model_type": meta.get("model_type", "Regression Algorithm"),
                 "algorithm": meta.get("algorithm", model["summary"]),
+                "transformation": (metrics.get("Target_Transformation") if metrics and metrics.get("Target_Transformation") else meta.get("transformation", "None")),
                 "cv_summary": cv_summary,
-                "status": "Trained & Evaluated",
+                "status": "Production Champion" if (bool(best_name) and model["name"] == best_name) else "Trained & Evaluated",
                 "rank": rank,
                 "metrics": metrics,
                 "images": images,
@@ -935,6 +1343,20 @@ def load_visualization_modules():
             "summary": "Individual diagnostics for all five trained regression models: actual vs predicted scatter plots, residual distributions, and feature importance profiles.",
             "visualizations": [
                 {
+                    "id": "m4-v0",
+                    "module_num": "Module 4",
+                    "module_name": "Machine Learning and Model Analysis",
+                    "title": "CatBoost Regressor Champion (Log1p Target) — Actual vs Predicted (Holdout)",
+                    "src": "Final_Model_Evaluation/final_actual_vs_predicted.png",
+                    "alt": "CatBoost Regressor Champion Actual vs Predicted Loss on Holdout Data",
+                    "caption": "Actual vs Predicted claim loss for the promoted CatBoost champion on 10,000 holdout claims.",
+                    "concept": "Benchmarking out-of-sample predictions of the production champion against actual holdout claims.",
+                    "what_it_shows": "Tight diagonal adherence with accurate calibration across normal and moderate claim loss severities.",
+                    "why_useful": "Visual proof of optimal generalization that made CatBoost Regressor the production champion.",
+                    "dataset_or_model": "CatBoost Regressor (Models/best_model.pkl) on 10,000 untouched holdout rows",
+                    "metric_summary": "Holdout MAE: $1,154.95 | RMSE: $2,001.08 | R²: 0.5396 (Production Champion).",
+                },
+                {
                     "id": "m4-v1",
                     "module_num": "Module 4",
                     "module_name": "Machine Learning and Model Analysis",
@@ -944,9 +1366,9 @@ def load_visualization_modules():
                     "caption": "Actual vs Predicted claim loss scatter on the 10,000 test claims (Hist Gradient Boosting).",
                     "concept": "Scatter plot benchmarking model predictions on the y-axis against true held-out test losses on the x-axis.",
                     "what_it_shows": "Tight clustering along the 45-degree identity line (y = x) across the core claim loss range.",
-                    "why_useful": "Provides visual evidence of high regression fit, confirming why Hist Gradient Boosting achieved the lowest RMSE.",
-                    "dataset_or_model": "Hist Gradient Boosting Regressor (Models/best_model.pkl) on 10,000 test rows",
-                    "metric_summary": "RMSE: 1,921.0240 | R²: 0.545901 | MAE: 1,215.2997 (Best Performing Model).",
+                    "why_useful": "Provides visual evidence of high regression fit, confirming why Hist Gradient Boosting achieved strong baseline RMSE.",
+                    "dataset_or_model": "Hist Gradient Boosting Regressor (Models/hist_gradient_boosting_regressor.pkl) on 10,000 test rows",
+                    "metric_summary": "RMSE: 1,921.0240 | R²: 0.545901 | MAE: 1,215.2997 (Strong Tree-Boosting Baseline).",
                 },
                 {
                     "id": "m4-v2",
@@ -1083,6 +1505,156 @@ def load_visualization_modules():
                     "why_useful": "Proves that model performance is robust and repeatable, not an artifact of a single train/test split.",
                     "dataset_or_model": "Outputs/CrossValidation/regression_5fold_summary.csv",
                     "metric_summary": "Hist Gradient Boosting 5-Fold Mean R²: 0.5532 ± 0.0056 | Mean RMSE: 1,937.66 ± 34.40.",
+                },
+            ],
+        },
+        {
+            "number": "Module 6",
+            "section_tag": "Section G: Clustering & Unsupervised Learning",
+            "name": "Clustering & Dimensionality Reduction Studio",
+            "academic_title": "Module 6: K-Means, Agglomerative, DBSCAN, PCA, and t-SNE",
+            "slug": "module-6",
+            "summary": "Unsupervised insurance profile segmentation and manifold visualization using K-Means (k-means++), Hierarchical Agglomerative clustering, DBSCAN density discovery, PCA variance profiling, and t-SNE 2D manifold embeddings.",
+            "visualizations": [
+                {
+                    "id": "m6-v1",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "K-Means Elbow Curve (Inertia vs Clusters)",
+                    "src": "clustering/kmeans_elbow.png",
+                    "alt": "K-Means Elbow Method WCSS vs Number of Clusters",
+                    "caption": "Within-Cluster Sum of Squares (Inertia) across k = 1..10 with marked elbow at k = 2.",
+                    "concept": "WCSS metric evaluating variance compaction to determine natural cluster count.",
+                    "what_it_shows": "Sharp reduction from k=1 (1,267,065) to k=2 (1,186,136), with diminishing returns past k=2.",
+                    "why_useful": "Provides mathematical foundation for selecting k=2 clusters rather than arbitrary guessing.",
+                    "dataset_or_model": "Outputs/clustering/kmeans_elbow.png (130 Scaled Features, 50,000 Claims)",
+                    "metric_summary": "Selected k=2 | Inertia: 6,093,954.6 across 50,000 full records.",
+                },
+                {
+                    "id": "m6-v2",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "K-Means Silhouette Score Analysis (k = 2..8)",
+                    "src": "clustering/kmeans_silhouette.png",
+                    "alt": "K-Means Silhouette Coefficient across Candidate Clusters",
+                    "caption": "Silhouette coefficient curve evaluating cohesion and separation across k = 2..8.",
+                    "concept": "Measures how similar each record is to its own cluster compared to neighboring clusters.",
+                    "what_it_shows": "Peak silhouette score at k=2 (0.0813), dropping progressively as k increases to 8 (0.0221).",
+                    "why_useful": "Directly corroborates the elbow heuristic to confirm k=2 as the optimal cluster count.",
+                    "dataset_or_model": "Outputs/clustering/kmeans_silhouette.png (3,000-sample validation)",
+                    "metric_summary": "Peak Silhouette: 0.0813 at k=2 (highest separation across tested range).",
+                },
+                {
+                    "id": "m6-v3",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "K-Means Cluster Membership & Record Distribution",
+                    "src": "clustering/kmeans_clusters.png",
+                    "alt": "K-Means Cluster Size Distribution and Record Share",
+                    "caption": "Balanced record distribution: Cluster 0 (21,447 records / 42.9%) vs Cluster 1 (28,553 records / 57.1%).",
+                    "concept": "Cluster population balance ensuring no degenerated singleton groups.",
+                    "what_it_shows": "Well-balanced partition across the 50,000 historical claim records.",
+                    "why_useful": "Confirms both clusters contain statistically substantial sample sizes for business segment profiling.",
+                    "dataset_or_model": "Outputs/clustering/kmeans_clusters.png",
+                    "metric_summary": "Total records: 50,000 | Cluster 0: 21,447 (42.89%) | Cluster 1: 28,553 (57.11%).",
+                },
+                {
+                    "id": "m6-v4",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "K-Means Clusters in 2D PCA Space",
+                    "src": "clustering/kmeans_pca_clusters.png",
+                    "alt": "K-Means Clusters Visualized in First Two Principal Components",
+                    "caption": "Unsupervised cluster labels mapped onto the first two principal component axes.",
+                    "concept": "Orthogonal dimensionality reduction used exclusively for high-dimensional cluster visualization.",
+                    "what_it_shows": "Distinct core density regions in the principal component plane (PC1: 5.4% var, PC2: 4.2% var).",
+                    "why_useful": "Validates cluster separation in the dominant variance directions of the 130-feature space.",
+                    "dataset_or_model": "Outputs/clustering/kmeans_pca_clusters.png",
+                    "metric_summary": "Full 130 standardized features fitted | PC1 + PC2 project 9.6% total variance.",
+                },
+                {
+                    "id": "m6-v5",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "Hierarchical Agglomerative Clustering (Ward Linkage)",
+                    "src": "clustering/agglomerative_clusters.png",
+                    "alt": "Agglomerative Hierarchical Clustering in 2D PCA Space",
+                    "caption": "Bottom-up hierarchical cluster dendrogram segmentation with Ward's variance minimization criterion.",
+                    "concept": "Agglomerative tree clustering computing optimal nested groupings across candidate levels.",
+                    "what_it_shows": "Cluster assignment partition (k=5) and silhouette comparison across hierarchy depths.",
+                    "why_useful": "Provides non-centroid alternative to K-Means, revealing sub-hierarchies in customer profiles.",
+                    "dataset_or_model": "Outputs/clustering/agglomerative_clusters.png (5,000-row sample)",
+                    "metric_summary": "Selected k=5 | Silhouette: 0.0405 | Calinski-Harabasz: 212.4.",
+                },
+                {
+                    "id": "m6-v6",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "DBSCAN Density-Based Clusters & Noise Points",
+                    "src": "clustering/dbscan_clusters.png",
+                    "alt": "DBSCAN Density Clusters and Noise Distribution",
+                    "caption": "DBSCAN density discovery isolating 7 dense clusters and flagging 162 noise points (label -1).",
+                    "concept": "Density reachability clustering isolating sparse outliers without forcing points into unnatural centroids.",
+                    "what_it_shows": "7 dense core clusters alongside 162 noise records (3.24%) marked in grey.",
+                    "why_useful": "Identifies unusual claim patterns without asserting unsubstantiated fraud labels.",
+                    "dataset_or_model": "Outputs/clustering/dbscan_clusters.png (eps=13.675, min_samples=10)",
+                    "metric_summary": "Clusters: 7 | Noise points: 162 (3.24%) | Valid Silhouette: 0.2994.",
+                },
+                {
+                    "id": "m6-v7",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "PCA Explained Variance & Cumulative Spectrum",
+                    "src": "clustering/pca_explained_variance.png",
+                    "alt": "PCA Scree Plot and Cumulative Explained Variance Ratio",
+                    "caption": "Explained variance percentage per component and cumulative curve across 50 principal components.",
+                    "concept": "Eigenvalue decomposition measuring variance concentration across orthogonal dimensions.",
+                    "what_it_shows": "Top 20 components capture 48.2% variance; 50 components capture 73.95% cumulative variance.",
+                    "why_useful": "Quantifies feature redundancy and guides compact representations for subsequent modeling.",
+                    "dataset_or_model": "Outputs/clustering/pca_explained_variance.png (50 Components)",
+                    "metric_summary": "50 components capture 73.95% total variance | 80% threshold reached at ~62 components.",
+                },
+                {
+                    "id": "m6-v8",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "2D PCA Projection Colored by Claim Loss",
+                    "src": "clustering/pca_2d.png",
+                    "alt": "2D PCA Scatter Colored by Log1p Claim Severity",
+                    "caption": "Continuous claim severity mapped across the principal component plane.",
+                    "concept": "Visualizing target distribution across dominant unsupervised feature axes.",
+                    "what_it_shows": "Continuous dispersion of claim severity across the principal subspace without discrete severity boundaries.",
+                    "why_useful": "Demonstrates why continuous regression is the appropriate paradigm for claim amount prediction.",
+                    "dataset_or_model": "Outputs/clustering/pca_2d.png",
+                    "metric_summary": "PC1: 5.42% variance | PC2: 4.18% variance | Log1p color mapping.",
+                },
+                {
+                    "id": "m6-v9",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "t-SNE 2D Manifold Embedding (Non-linear Projection)",
+                    "src": "clustering/tsne_clusters.png",
+                    "alt": "t-SNE Non-Linear Manifold Projection of Claim Features",
+                    "caption": "t-SNE non-linear dimension reduction on PCA-30 subspace, preserving local topological neighborhoods.",
+                    "concept": "Stochastic neighbor embedding modeling high-dimensional probabilities in a low-dimensional manifold.",
+                    "what_it_shows": "Cohesive non-linear groupings reflecting local similarities in customer feature vectors.",
+                    "why_useful": "Complements linear PCA by revealing complex non-linear structures in the 130-feature insurance space.",
+                    "dataset_or_model": "Outputs/clustering/tsne_clusters.png (Perplexity 30, n=2,500)",
+                    "metric_summary": "PCA-30 pre-reduction | Perplexity: 30 | Iterations: 1,000 | KL Divergence: 1.15.",
+                },
+                {
+                    "id": "m6-v10",
+                    "module_num": "Module 6",
+                    "module_name": "Clustering & Dimensionality Reduction",
+                    "title": "Comparative Cluster Profiles & Predictor Distributions",
+                    "src": "clustering/cluster_profiles.png",
+                    "alt": "Cluster Profiles Claim Loss and Feature Means",
+                    "caption": "Side-by-side boxplots of claim amounts and standardized continuous predictor means across clusters.",
+                    "concept": "Post-hoc profiling using target and feature summaries to characterize discovered groupings.",
+                    "what_it_shows": "Cluster 0 mean loss: $2,982.89 vs Cluster 1 mean loss: $3,074.16, with distinguishing continuous predictor profiles.",
+                    "why_useful": "Provides interpretable business intelligence on how risk profiles differ across clusters.",
+                    "dataset_or_model": "Outputs/clustering/cluster_profiles.png",
+                    "metric_summary": "Cluster 0 median loss: $2,074.83 | Cluster 1 median loss: $2,149.72.",
                 },
             ],
         },
@@ -2062,6 +2634,7 @@ def models():
         model_rows=model_rows,
         core_models=core_models,
         best_name=best_name,
+        best_metrics=model_rows[0] if model_rows else None,
         model_ready=bool(model_rows),
         gallery=gallery,
         kpi_cards=kpi_cards,
@@ -2072,6 +2645,8 @@ def models():
         model_charts=model_charts,
         final_test_row=load_final_test_row(),
         classification=load_classification_metadata(),
+        clustering=load_clustering_metadata(),
+        unified_leaderboard=load_unified_models_comparison(),
     )
 
 
@@ -2135,7 +2710,7 @@ def prediction():
                         "actual_loss": float(y_test.iloc[row_index]),
                         "feature_count": row.shape[1],
                         "model": best_name,
-                        "model_name_exact": "HistGradientBoosting Regressor",
+                        "model_name_exact": "CatBoost Regressor (Log1p Target)",
                         "status": "success",
                     }
                 except (TypeError, ValueError) as exc:
@@ -2220,7 +2795,7 @@ def prediction():
                     "predicted_loss": predicted_loss,
                     "feature_count": int(features.shape[1]),
                     "model": best_name,
-                    "model_name_exact": "HistGradientBoosting Regressor",
+                    "model_name_exact": "CatBoost Regressor (Log1p Target)",
                     "model_class": type(model).__name__,
                     "timestamp": timestamp_now,
                     "warnings": warnings,

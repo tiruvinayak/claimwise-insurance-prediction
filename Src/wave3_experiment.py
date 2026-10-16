@@ -597,16 +597,74 @@ def promote_champion(champion: pd.Series, splits: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Model-comparison refresh + metadata
 # ---------------------------------------------------------------------------
+LOG1P_FAMILY_BY_TOKEN = (
+    ("HistGB", "Hist Gradient Boosting Regressor"),
+    ("XGB", "XGBoost Regressor"),
+    ("CatBoost", "CatBoost Regressor"),
+)
+
+
+def map_log1p_family(config_label: str) -> str | None:
+    """Underlying family for a log1p(...) config label, or None if unparseable."""
+
+    label = str(config_label)
+    if not label.startswith("log1p(") or not label.endswith(")"):
+        return None
+    inner = label[len("log1p("):-1]
+    for token, family in LOG1P_FAMILY_BY_TOKEN:
+        if inner.startswith(token):
+            return family
+    return None
+
+
+def resolve_leaderboard_family(model_name: str, config_label: str) -> tuple[str, str]:
+    """Display family + target transformation for a tuning row.
+
+    "Log1p Target Experiments" is an experiment group, not a standalone
+    algorithm — its rows fold into the underlying family with
+    Target_Transformation="Log1p" so the leaderboard never treats a target
+    transformation as a model family.
+    """
+
+    if str(model_name) == "Log1p Target Experiments":
+        family = map_log1p_family(config_label)
+        if family:
+            return family, "Log1p"
+    return str(model_name), "None"
+
+
 def refresh_model_comparison(results: pd.DataFrame, champion: pd.Series) -> None:
     ok = results[results["status"] == "ok"].copy()
+
+    # Fold log1p experiment rows into their underlying families.
+    resolved = [
+        resolve_leaderboard_family(m, c) for m, c in zip(ok["Model"], ok["Config"])
+    ]
+    ok["Model"] = [r[0] for r in resolved]
+    ok["Target_Transformation"] = [r[1] for r in resolved]
+    # The blend is an original-scale ensemble of two families; make its
+    # composition explicit now that log1p rows carry family names.
+    blend_label = (
+        "50/50 mean of Log1p Target Experiments + XGBoost Regressor",
+        "50/50 mean of CatBoost Regressor (Log1p) + XGBoost Regressor",
+    )
+    ok["Config"] = ok["Config"].replace({blend_label[0]: blend_label[1]})
+
     # One best config per family for the leaderboard (validation metrics).
     best_per_family = (
         ok.sort_values("MAE").groupby("Model", as_index=False).first()
         .sort_values(["MAE", "RMSE"], ascending=[True, True]).reset_index(drop=True)
     )
-    best_per_family["Selected_For_Final_Test"] = best_per_family["Model"].eq(
-        champion["Model"]
-    ) & best_per_family["Config"].eq(champion["Config"])
+    best_per_family.insert(0, "Rank", range(1, len(best_per_family) + 1))
+    best_per_family["Task"] = "Regression"
+    best_per_family["Evaluation_Dataset"] = (
+        f"Wave-{WAVE} Validation ({VALIDATION_ROWS:,} rows, seed {SEED})"
+    )
+    champ_family, _ = resolve_leaderboard_family(champion["Model"], champion["Config"])
+    best_per_family["Selected_For_Final_Test"] = (
+        best_per_family["Model"].eq(champ_family)
+        & best_per_family["Config"].astype(str).eq(str(champion["Config"]))
+    )
     COMPARISON_DIR.mkdir(parents=True, exist_ok=True)
     best_per_family.to_csv(COMPARISON_DIR / "model_comparison.csv", index=False)
     (COMPARISON_DIR / "model_comparison.json").write_text(
@@ -614,17 +672,32 @@ def refresh_model_comparison(results: pd.DataFrame, champion: pd.Series) -> None
     )
 
     ordered = best_per_family.sort_values("MAE", ascending=True)
+    labels = [
+        f"{name} (Log1p)" if transform == "Log1p" else name
+        for name, transform in zip(ordered["Model"], ordered["Target_Transformation"])
+    ]
+    colors = [
+        "#B45309" if transform == "Log1p"
+        else ("#7C3AED" if name == "Blend Ensemble" else "#0D9488")
+        for name, transform in zip(ordered["Model"], ordered["Target_Transformation"])
+    ]
     fig, axes = plt.subplots(1, 2, figsize=(16, 6.5))
-    axes[0].barh(ordered["Model"], ordered["MAE"], color="#0D9488", edgecolor="#0F766E")
+    axes[0].barh(labels, ordered["MAE"], color=colors, edgecolor="#0F766E")
     axes[0].set_title("Validation MAE (Lower is Better)", fontsize=13, fontweight="bold")
     axes[0].set_xlabel("MAE (Loss Scale)")
     axes[0].invert_yaxis()
     axes[0].grid(axis="x", linestyle="--", alpha=0.5)
-    axes[1].barh(ordered["Model"], ordered["R2"], color="#1D4ED8", edgecolor="#1E3A8A")
+    axes[1].barh(labels, ordered["R2"], color=colors, edgecolor="#1E3A8A")
     axes[1].set_title("Validation R² (Higher is Better)", fontsize=13, fontweight="bold")
     axes[1].set_xlabel("R²")
     axes[1].invert_yaxis()
     axes[1].grid(axis="x", linestyle="--", alpha=0.5)
+    fig.text(
+        0.5, 0.005,
+        "Amber = log1p target transformation on the same underlying algorithm; "
+        "Violet = blend ensemble.",
+        ha="center", fontsize=9, style="italic", color="#374151",
+    )
     fig.suptitle(
         f"ClaimWise Wave-{WAVE} Validation Leaderboard (seed {SEED}, 7,500 validation rows)",
         fontsize=15, fontweight="bold",

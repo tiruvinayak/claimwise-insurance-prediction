@@ -1,2 +1,2 @@
-selected_k,silhouette_selected_k,silhouette_full_fit_sample,inertia_full,rows_clustered
-2,0.0836,0.0822,6093954.6,50000
+algorithm,selected_k,silhouette_selected_k,silhouette_full_fit_sample,calinski_harabasz,davies_bouldin,inertia_full,rows_clustered,features_used,status
+K-Means (k-means++),2,0.0813,0.0828,681.92,3.4415,6093954.6,50000,130,Evaluated

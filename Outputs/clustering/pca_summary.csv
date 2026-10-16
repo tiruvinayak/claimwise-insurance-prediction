@@ -1,0 +1,2 @@
+technique,components_computed,pc1_variance_%,pc2_variance_%,pc1_to_pc10_cumulative_%,pc1_to_pc20_cumulative_%,pc1_to_pc50_cumulative_%
+Principal Component Analysis (PCA),50,8.48,5.08,36.0,49.39,73.95

@@ -525,6 +525,9 @@ FAMILY_TO_FOLDER = {
     "Hist Gradient Boosting Regressor": "Hist_Gradient_Boosting_Regressor",
     "AdaBoost Regressor": "AdaBoost_Regressor",
     "K-Nearest Neighbors Regressor": "K_Nearest_Neighbors_Regressor",
+    "CatBoost Regressor": "CatBoost_Regressor",
+    "XGBoost Regressor": "XGBoost_Regressor",
+    "Blend Ensemble": "Blend_Ensemble",
 }
 
 

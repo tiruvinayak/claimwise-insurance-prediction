@@ -1,5 +1,5 @@
 {
-  "model": "Log1p Target Experiments",
+  "model": "CatBoost Regressor",
   "config": "log1p(CatBoost iterations=2000,lr=0.04,depth=6)",
   "artifact": "Models/best_model.pkl",
   "feature_contract": "130 preprocessed features from Models/claimwise_preprocessor.pkl",
@@ -25,5 +25,10 @@
   "trained_utc": "2026-10-15T05:30:40.017753+00:00",
   "seed": 2026,
   "wave": 3,
-  "previous_champion_backup": "Models/best_model_pre_wave3.pkl"
+  "previous_champion_backup": "Models/best_model_pre_wave3.pkl",
+  "algorithm": "CatBoost Regressor",
+  "target_transformation": "Log1p",
+  "experiment_name": "Log1p Target Experiments",
+  "prediction_scale": "Original insurance claim amount",
+  "status": "Production Champion"
 }

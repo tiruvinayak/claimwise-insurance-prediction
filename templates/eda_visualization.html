@@ -248,8 +248,8 @@
             </p>
         </div>
 
-        <!-- C.1 Curated modules (model analysis & final evaluation) -->
-        {% for mod in modules if mod.number in ['Module 4', 'Module 5'] %}
+        <!-- C.1 Curated modules (model analysis, final evaluation, and clustering studio) -->
+        {% for mod in modules if mod.number in ['Module 4', 'Module 5', 'Module 6'] %}
         <div class="viz-module" id="{{ mod.slug }}">
             <div class="viz-module-head">
                 <div>
@@ -262,7 +262,7 @@
 
             {% for viz in mod.visualizations %}
             <article class="viz-entry" data-artifact
-                     data-type="image" data-topic="model_comparison"
+                     data-type="image" data-topic="{% if 'clustering' in viz.src %}clustering_unsupervised{% else %}model_comparison{% endif %}"
                      data-model="{{ viz.src.split('/')[0] | lower }}"
                      data-filename="{{ viz.src.split('/')[-1] | lower }}"
                      data-desc="{{ (viz.title ~ ' ' ~ viz.concept ~ ' ' ~ viz.what_it_shows) | lower }}">

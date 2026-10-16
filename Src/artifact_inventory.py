@@ -293,20 +293,12 @@ def _classify_csv_artifact(rel_str: str, filename: str, columns: list[str], row_
             "Cumulative explained variance table and PCA vs original feature space modeling experiment.",
         )
 
-    if "clustering" in rel_str:
+    if "clustering" in rel_str or "dbscan" in rel_str:
         return (
-            "Academic Research",
-            "academic",
-            "Clustering Profiles",
-            "K-Means silhouette analysis across k=2..8 and summary cluster profiles.",
-        )
-
-    if "dbscan" in rel_str:
-        return (
-            "Academic Research",
-            "academic",
-            "DBSCAN Cluster Summary",
-            "Density-based clustering diagnostics, epsilon parameters, and noise point ratios.",
+            "Clustering & Unsupervised Learning",
+            "clustering",
+            "Clustering & Segmentation Artifacts",
+            "Unsupervised clustering assignments, parameters, silhouette scores, and cluster profiles.",
         )
 
     if "anomaly" in rel_str:
@@ -539,20 +531,28 @@ def _classify_visualization_artifact(rel_str: str, filename: str) -> Tuple[str, 
                 "Production Champion — Actual vs Predicted (untouched test)",
                 "Model Evaluation",
                 "models",
-                "Scatter plot of observed versus predicted claim loss for the promoted HistGradientBoosting champion on the untouched 10,000-row test split.",
+                "Scatter plot of observed versus predicted claim loss for the promoted CatBoost Regressor champion (Log1p target transformation) on the untouched 10,000-row holdout.",
             )
         if "residual" in filename:
             return (
                 "Production Champion — Residual Diagnostics (untouched test)",
                 "Model Evaluation",
                 "models",
-                "Residual distribution and error diagnostics for the promoted champion model evaluated once on the held-out test split.",
+                "Residual distribution and error diagnostics for the promoted CatBoost Regressor champion evaluated on the held-out test split.",
             )
         return (
             "Production Champion — Final Evaluation Artifact",
             "Model Evaluation",
             "models",
-            "Final untouched-test evaluation figure produced by the model experiment suite.",
+            "Final untouched-test evaluation figure produced by the CatBoost champion evaluation suite.",
+        )
+
+    if "ClassificationExperiment" in rel_str:
+        return (
+            "High-Loss Triage Classifier — ROC & Precision-Recall Curves",
+            "Academic Research",
+            "academic",
+            "ROC-AUC (0.894) and PR-AUC (0.765) curves for the high-loss claim triage classifier (threshold loss >= $3,865.98).",
         )
 
     # Per-model diagnostics
@@ -876,16 +876,22 @@ TOPIC_CONFIG = {
         "order": 6,
         "description": "Sample inference records, full test partition prediction arrays, and batch validation logs.",
     },
+    "clustering_unsupervised": {
+        "title": "Clustering & Unsupervised Learning",
+        "badge_class": "badge-clustering",
+        "order": 7,
+        "description": "K-Means (k-means++), Hierarchical Agglomerative clustering, DBSCAN density analysis, PCA, and t-SNE manifold projections.",
+    },
     "academic_research": {
         "title": "Academic Research & Extensions",
         "badge_class": "badge-academic",
-        "order": 7,
-        "description": "Principal Component Analysis (PCA), binary classification benchmarks, K-Means clustering, DBSCAN, and anomaly detection.",
+        "order": 8,
+        "description": "Principal Component Analysis (PCA), binary classification benchmarks, cross-validation runs, and anomaly detection.",
     },
     "other_outputs": {
         "title": "Other Project Outputs",
         "badge_class": "badge-other",
-        "order": 8,
+        "order": 9,
         "description": "Supplementary data exports, logs, and technical artifacts.",
     },
 }
@@ -1010,17 +1016,42 @@ def _classify_output_file(rel_to_outputs: Path, file_size: int) -> Tuple[str, st
         else:
             desc = f"Final model inference diagnostic: {filename}."
 
-    elif first_dir in ["PCA", "classification", "clustering", "dbscan", "anomaly"]:
+    elif first_dir in ["clustering", "dbscan"]:
+        topic_key = "clustering_unsupervised"
+        if "kmeans_elbow" in filename:
+            desc = "K-Means elbow curve showing within-cluster sum of squares (inertia) across k=1..10 with optimal elbow at k=2."
+        elif "kmeans_silhouette" in filename:
+            desc = "K-Means silhouette score analysis across candidate cluster counts k=2..8 confirming peak separation at k=2."
+        elif "kmeans_clusters" in filename:
+            desc = "K-Means cluster size distribution and record share across clusters (50,000 records, k=2)."
+        elif "kmeans_pca" in filename:
+            desc = "2D PCA projection of the 130-feature space colored by unsupervised K-Means cluster assignments."
+        elif "agglomerative" in filename:
+            desc = "Hierarchical Agglomerative Clustering (Ward linkage) in 2D PCA space with silhouette quality analysis."
+        elif "dbscan_clusters" in filename:
+            desc = "DBSCAN density-based clusters and noise points (label -1) in 2D PCA space with noise percentage."
+        elif "cluster_profiles" in filename:
+            desc = "Comparative cluster profiles showing claim loss distributions and standardized continuous predictor means."
+        elif "pca_explained_variance" in filename:
+            desc = "PCA individual explained variance ratio and cumulative variance across principal components with 80%/90% thresholds."
+        elif "pca_2d" in filename:
+            desc = "2D Principal Component Analysis projection colored by log1p claim severity."
+        elif "tsne" in filename:
+            desc = "t-SNE 2D non-linear manifold embedding on PCA-30 pre-reduction colored by K-Means cluster assignments."
+        elif first_dir == "clustering":
+            desc = f"Unsupervised K-Means clustering evaluation artifact ({stem.replace('kmeans_', '')})."
+        elif first_dir == "dbscan":
+            desc = f"DBSCAN density clustering and noise analysis ({stem.replace('dbscan_', '')})."
+        else:
+            desc = f"Clustering and unsupervised learning output: {filename}."
+
+    elif first_dir in ["PCA", "classification", "anomaly"]:
         topic_key = "academic_research"
         module_name = first_dir.title()
         if first_dir == "PCA":
             desc = f"Principal Component Analysis feature variance artifact ({stem.replace('pca_', '')})."
         elif first_dir == "classification":
             desc = f"High-loss classification experiment diagnostic ({stem.replace('_', ' ')})."
-        elif first_dir == "clustering":
-            desc = f"Unsupervised K-Means clustering structure evaluation ({stem.replace('kmeans_', '')})."
-        elif first_dir == "dbscan":
-            desc = f"DBSCAN density clustering and noise analysis ({stem.replace('dbscan_', '')})."
         elif first_dir == "anomaly":
             desc = f"Isolation Forest multivariate anomaly detection artifact ({stem.replace('anomaly_', '')})."
         else:
@@ -1187,10 +1218,20 @@ def get_outputs_summary() -> Dict[str, Any]:
 
 
 def resolve_safe_output_path(web_src: str) -> Optional[Path]:
-    """Validate that requested relative path is strictly within OUTPUTS_DIR."""
+    """Validate that requested relative path is strictly within OUTPUTS_DIR.
+
+    Handles duplicated prefixes (e.g. Outputs/Outputs/...), leading slashes,
+    and case-insensitive matching while strictly enforcing directory containment.
+    """
     try:
         clean = str(web_src).strip().replace("\\", "/")
-        if ".." in clean or clean.startswith("/"):
+        if ".." in clean:
+            return None
+        clean = clean.lstrip("/")
+        # Strip repeated leading Outputs/ or outputs/ prefixes
+        while clean.lower().startswith("outputs/"):
+            clean = clean[len("outputs/"):].lstrip("/")
+        if not clean:
             return None
         target = (OUTPUTS_DIR / clean).resolve()
         # Verify strict containment inside OUTPUTS_DIR
@@ -1198,6 +1239,24 @@ def resolve_safe_output_path(web_src: str) -> Optional[Path]:
             return None
         if target.exists() and target.is_file():
             return target
+
+        # Case-insensitive path resolution fallback within OUTPUTS_DIR
+        parts = [p for p in clean.split("/") if p]
+        curr = OUTPUTS_DIR
+        for part in parts:
+            if not curr.is_dir():
+                return None
+            matched = None
+            part_lower = part.lower()
+            for child in curr.iterdir():
+                if child.name.lower() == part_lower:
+                    matched = child
+                    break
+            if matched is None:
+                return None
+            curr = matched
+        if curr.is_file() and OUTPUTS_DIR.resolve() in curr.resolve().parents:
+            return curr.resolve()
         return None
     except Exception:
         return None
